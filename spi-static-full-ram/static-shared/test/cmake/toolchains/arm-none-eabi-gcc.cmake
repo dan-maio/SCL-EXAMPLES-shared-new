@@ -1,1 +1,0 @@
-../../cmake/arm-none-eabi.cmake

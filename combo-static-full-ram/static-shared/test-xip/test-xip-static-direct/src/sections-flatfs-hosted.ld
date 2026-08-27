@@ -1,1 +1,0 @@
-/home/dan/Documents/shared-loaders-weact_agy/test-xip/test-xip-static/semihosting/src/sections-flatfs-hosted.ld
