@@ -1,0 +1,73 @@
+# examples — one app per loader model, twice over
+
+WeAct F411CE apps that load a library at runtime and print to UART + semihosting.
+Each was built by following `../docs/import_in_project_full.md` verbatim for its
+situation, so they double as a live verification of that guide. Two families:
+
+- **`float-*`** — a tiny `float_add`/`float_mul` library (no imports); the
+  minimal shape of each model.
+- **`spifs-*`** — the **real** thing: the reference **W25Q64 SPI-flash driver +
+  a flat-fs on top**, as a loadable library. `main` calls it by name to
+  init/format the on-board SPI flash, create/list/read/delete files. The module
+  imports the STM32 **HAL** from `main`, so these also exercise
+  `../docs/resolving-module-imports.md` (the `.dynsym` / anchor path).
+
+| Dir | Situation | Loader | Call style |
+|---|---|---|---|
+| `float-reloc`  / `spifs-reloc`   | A — RAM         | `scl::reloc` (ET_REL)       | `sym`→ptr / `from_self`-resolved |
+| `float-static` / `spifs-static`  | B — XIP + r10   | `scl::xip-static` (PIC)     | **bare** by-name (`set_r10` once) |
+| `float-optimal`/ `spifs-optimal` | C — XIP, no r10 | `optimal` (no-pic windows)  | **bare** by-name (no r10) |
+
+The `spifs-*` apps additionally: build the fixture from the reference
+`w25q64.cpp` driver + `fs-archive-spi.cpp`; are **WeAct-only** (they drive the
+physical SPI flash); resolve the module's HAL imports against `main`'s `.dynsym`
+(reloc opts into `-pie` + `from_self`, the XIP models get it for free).
+
+### `combo-*` — the cross-module load/unload cycle
+
+Four apps (`combo-reloc`, `combo-static`, `combo-optimal`, `combo-static-full-ram`)
+that combine the two fixtures on each model to demonstrate the unload/reload
+cycle end-to-end: **semihost + load the float library, compute `sum`/`prod` and
+keep them in `main`, unload it, then semihost + load the SPI library and write
+those two values to `calc.txt` on the on-board flat-fs, read it back, print.**
+
+They show, per model: values survive the swap because they live in `main`;
+modules are semihosted **one at a time** (not upfront); the memory (arena/buffer/
+window) is reused; and unload differs per model (reloc discards, static is
+byte-exact, XIP+r10/no-r10 deregister and re-patch). `combo-optimal` also links
+both `.so` at the **same** SRAM window. See `../docs/import_in_project_full.md`
+§4½. All four verified on WeAct F411CE hardware.
+
+### `spi-static-full-ram` — the classic patcher
+
+A fourth SPI-flatfs variant using **`scl::static`**: the same fixture built as a
+plain **`-fPIC` `.so`** is copied **whole into a RAM buffer** and run there — the
+dlopen-style patcher. `r10`-free, **bare direct calls** (`patch_main`), no
+`-pie`; the module's imports resolve against an `elf_loader::symbol_table` that
+`main` fills with `add_global(name, addr)`. One `scl::Module::load_file()` does
+copy + relocate + patch + constructors. See `../docs/LOADER-CHOICE.md` §3a and
+`import_in_project_full.md` §A-bis.
+
+## Build & run (WeAct board, SWD/CMSIS-DAP)
+
+The SCL loader is **not vendored** — each `run.sh` clones it from git on first
+run (override the location with `GIT_REMOTE=…`), then builds the fixture and the
+firmware and flashes with OpenOCD + semihosting:
+
+```sh
+cd float-reloc && ./run.sh        # (or float-static / float-optimal)
+```
+
+Expected `float-*` output (semihosting console and USART1 PA9, 115200 8N1):
+
+```
+float_add(2.500, 3.500) = 6.000
+float_mul(2.500, 3.500) = 8.750
+floatlib calls = 2
+```
+
+The `spifs-*` apps print an `init → format → create → ls → cat → delete → ls`
+walkthrough of the on-board SPI flash. All six were verified on WeAct F411CE
+hardware. (A `spifs-reloc` `run.sh` also copies the STM32 HAL from the reference
+repo — override its location with `REF_REPO=…` — since `relocatable-shared`
+ships none.)

@@ -1,0 +1,14 @@
+# Build trees
+**/build/
+**/build-*/
+# Generated / compiled fixture artifacts (rebuilt by each run.sh)
+**/fixtures/build/
+**/fixtures/*.so
+**/fixtures/*.rel.o
+**/fixtures/*.o
+**/fixtures/windows.generated.ld
+**/fixtures/*.generated.ld
+**/fixtures/link.txt
+**/fixtures/manifest.txt
+# run.sh-restored HAL vendor snapshots (not needed; platform tree is vendored)
+*/vendor/
