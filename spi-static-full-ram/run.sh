@@ -8,7 +8,8 @@
 #   RUN_MS=60000 ./run.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCL="$HERE/static-shared"
+SCL="$HERE/SCL-shared"
+PLATFORM="$HERE/platform"
 GIT_REMOTE="${GIT_REMOTE:-/home/dan/Downloads/GIT}"
 # loader provided by the shared SCL-shared clone (symlinked into $SCL); no clone needed
 TC="${ARM_TOOLCHAIN_BIN:-/home/dan/.local/xPacks/@xpack-dev-tools/arm-none-eabi-gcc/15.2.1-1.1.1/.content/bin}"
@@ -19,7 +20,7 @@ BUILD="$HERE/build"
 echo "== 1) fixture: spifs.so (plain -fPIC ET_DYN) =="
 make -C "$HERE/fixtures" TC="$TC"
 echo "== 2) configure + build firmware (WeAct) =="
-[ -d "$BUILD" ] || cmake -S "$HERE" -B "$BUILD" -DCMAKE_TOOLCHAIN_FILE="$SCL/cmake/arm-none-eabi.cmake"
+[ -d "$BUILD" ] || cmake -S "$HERE" -B "$BUILD" -DCMAKE_TOOLCHAIN_FILE="$PLATFORM/cmake/arm-none-eabi.cmake"
 cmake --build "$BUILD" --target spi-static-full-ram -j
 echo "== 3) flash + run (semihosting; fs output also on UART PA9 115200) =="
 killall -s 9 openocd 2>/dev/null || true

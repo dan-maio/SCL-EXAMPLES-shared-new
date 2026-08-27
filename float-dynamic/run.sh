@@ -7,7 +7,7 @@
 #   RUN_MS=10000 ./run.sh    # auto-shutdown after 10 s
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCL="$HERE/dynamic-shared"
+PLATFORM="$HERE/platform"
 # loader provided by the in-example SCL-shared submodule (symlinked into $SCL); no clone needed
 TC="${ARM_TOOLCHAIN_BIN:-/home/dan/.local/xPacks/@xpack-dev-tools/arm-none-eabi-gcc/15.2.1-1.1.1/.content/bin}"
 export PATH="$TC:$PATH"
@@ -19,7 +19,7 @@ echo "== 1) fixture: floatlib.so (plain -fPIC ET_DYN) =="
 make -C "$HERE/fixtures" TC="$TC"
 echo "== 2) configure + build firmware (WeAct, hosted) =="
 [ -d "$BUILD" ] || cmake -S "$HERE" -B "$BUILD" \
-    -DCMAKE_TOOLCHAIN_FILE="$SCL/cmake/arm-none-eabi-hosted.cmake" -DSCL_PLATFORM=board -DSCL_BOARD=weact
+    -DCMAKE_TOOLCHAIN_FILE="$PLATFORM/cmake/arm-none-eabi-hosted.cmake" -DSCL_PLATFORM=board -DSCL_BOARD=weact
 cmake --build "$BUILD" --target float-dynamic -j
 echo "== 3) flash + run (semihosting) =="
 killall -s 9 openocd 2>/dev/null || true

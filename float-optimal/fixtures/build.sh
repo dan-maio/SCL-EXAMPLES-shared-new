@@ -4,7 +4,8 @@
 # which src/app-windows.ld INCLUDEs. Single library => the window is exactly its size.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$HERE/.."; SCL="$(cd "$HERE/../optimal-shared" && pwd)"; OUT="$HERE"   # SCL from git
+ROOT="$HERE/.."; SCL="$(cd "$HERE/../platform" && pwd)"; OUT="$HERE"   # SCL from git
+SCLSHARED="$(cd "$HERE/../SCL-shared" && pwd)"
 APP_LD="$ROOT/src/app-windows.ld"
 LD_TMPL="$SCL/fixtures-src/ldscripts/nopic-split.ld"
 TC="${ARM_TOOLCHAIN_BIN:-/home/dan/.local/xPacks/@xpack-dev-tools/arm-none-eabi-gcc/15.2.1-1.1.1/.content/bin}"

@@ -5,7 +5,8 @@
 #   RUN_MS=90000 ./run.sh    # auto-shutdown after 90 s
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCL="$HERE/optimal-shared"
+SCL="$HERE/SCL-shared"
+PLATFORM="$HERE/platform"
 GIT_REMOTE="${GIT_REMOTE:-/home/dan/Downloads/GIT}"
 # loader provided by the shared SCL-shared clone (symlinked into $SCL); no clone needed
 TC="${ARM_TOOLCHAIN_BIN:-/home/dan/.local/xPacks/@xpack-dev-tools/arm-none-eabi-gcc/15.2.1-1.1.1/.content/bin}"
@@ -18,7 +19,7 @@ echo "== fixtures (loadable floatlib.so + derived windows) =="
 bash "$HERE/fixtures/build.sh"
 echo "== configure + build firmware =="
 [ -d "$BUILD" ] || cmake -S "$HERE" -B "$BUILD" \
-    -DCMAKE_TOOLCHAIN_FILE="$SCL/cmake/arm-none-eabi.cmake"
+    -DCMAKE_TOOLCHAIN_FILE="$PLATFORM/cmake/arm-none-eabi.cmake"
 cmake --build "$BUILD" --target spifs-optimal -j
 
 echo "== flash + run (semihosting console; float results also on UART PA9 115200) =="

@@ -5,16 +5,17 @@ cmake_minimum_required(VERSION 3.20)
 project(float-reloc LANGUAGES C CXX)
 
 if(NOT CMAKE_CROSSCOMPILING)
-    message(FATAL_ERROR "configure with -DCMAKE_TOOLCHAIN_FILE=relocatable-shared/cmake/arm-none-eabi.cmake")
+    message(FATAL_ERROR "configure with -DCMAKE_TOOLCHAIN_FILE=platform/cmake/arm-none-eabi.cmake")
 endif()
 
-set(SCL ${CMAKE_SOURCE_DIR}/relocatable-shared)
+set(SCL ${CMAKE_SOURCE_DIR}/SCL-shared)
+set(PLATFORM ${CMAKE_SOURCE_DIR}/platform)
 add_subdirectory(${SCL} scl)                          # defines scl::reloc (INTERFACE source lib)
 
 # platform selection (doc §0): board (weact) or qemu-f411re
 set(SCL_PLATFORM "board" CACHE STRING "board or qemu-f411re")
-set(PLAT ${SCL}/test/platforms/${SCL_PLATFORM})
-set(PLAT_COMMON ${SCL}/test/platforms/common)
+set(PLAT ${PLATFORM}/test/platforms/${SCL_PLATFORM})
+set(PLAT_COMMON ${PLATFORM}/test/platforms/common)
 if(SCL_PLATFORM STREQUAL "qemu-f411re")
     set(BOARD_DEFS "")
 else()

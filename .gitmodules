@@ -34,3 +34,18 @@
 [submodule "spi-static-full-ram/SCL-shared"]
 	path = spi-static-full-ram/SCL-shared
 	url = /home/dan/Downloads/SCL-shared.git
+[submodule "combo-dynamic/SCL-shared"]
+	path = combo-dynamic/SCL-shared
+	url = /home/dan/Downloads/SCL-shared.git
+[submodule "float-dynamic-xip/SCL-shared"]
+	path = float-dynamic-xip/SCL-shared
+	url = /home/dan/Downloads/SCL-shared.git
+[submodule "spifs-dynamic-xip/SCL-shared"]
+	path = spifs-dynamic-xip/SCL-shared
+	url = /home/dan/Downloads/SCL-shared.git
+[submodule "combo-dynamic-xip/SCL-shared"]
+	path = combo-dynamic-xip/SCL-shared
+	url = /home/dan/Downloads/SCL-shared.git
+[submodule "spifs-dynamic/SCL-shared"]
+	path = spifs-dynamic/SCL-shared
+	url = /home/dan/Downloads/SCL-shared.git

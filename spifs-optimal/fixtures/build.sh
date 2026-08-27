@@ -4,13 +4,14 @@
 # which src/app-windows.ld INCLUDEs. Single library => the window is exactly its size.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$HERE/.."; SCL="$(cd "$HERE/../optimal-shared" && pwd)"; OUT="$HERE"   # SCL from git
+ROOT="$HERE/.."; SCL="$(cd "$HERE/../platform" && pwd)"; OUT="$HERE"   # SCL from git
+SCLSHARED="$(cd "$HERE/../SCL-shared" && pwd)"
 APP_LD="$ROOT/src/app-windows.ld"
 LD_TMPL="$SCL/fixtures-src/ldscripts/nopic-split.ld"
 TC="${ARM_TOOLCHAIN_BIN:-/home/dan/.local/xPacks/@xpack-dev-tools/arm-none-eabi-gcc/15.2.1-1.1.1/.content/bin}"
 CXX="$TC/arm-none-eabi-g++"; READELF="$TC/arm-none-eabi-readelf"
 SU="$SCL/test/platforms/board-hosted/vendor"
-HALINC="-I$HERE/include -I$SU/common/firmware/include -I$SU/common/system/include/stm32f4-hal -I$SU/common/system/include/cmsis -I$SU/common/system/include -I$SCL/common-elf-reader/include"
+HALINC="-I$HERE/include -I$SU/common/firmware/include -I$SU/common/system/include/stm32f4-hal -I$SU/common/system/include/cmsis -I$SU/common/system/include -I$SCLSHARED/common-elf-reader/include"
 HALDEF="-DSTM32F411xE -DUSE_HAL_DRIVER"
 
 MCU="-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16"

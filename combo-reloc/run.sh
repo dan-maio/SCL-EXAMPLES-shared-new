@@ -7,7 +7,8 @@
 #   RUN_MS=60000 ./run.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCL="$HERE/relocatable-shared"
+SCL="$HERE/SCL-shared"
+PLATFORM="$HERE/platform"
 GIT_REMOTE="${GIT_REMOTE:-/home/dan/Downloads/GIT}"
 # loader provided by the shared SCL-shared clone (symlinked into $SCL); no clone needed
 # relocatable-shared ships no STM32 HAL; copy it from the reference repo (once)
@@ -29,7 +30,7 @@ echo "== 1) fixture: spifs.rel.o (W25Q64 driver + flatfs, ET_REL) =="
 make -C "$HERE/fixtures" TC="$TC"
 echo "== 2) configure + build firmware (WeAct) =="
 [ -d "$BUILD" ] || cmake -S "$HERE" -B "$BUILD" \
-    -DCMAKE_TOOLCHAIN_FILE="$SCL/cmake/arm-none-eabi.cmake" -DSCL_PLATFORM=board -DSCL_BOARD=weact
+    -DCMAKE_TOOLCHAIN_FILE="$PLATFORM/cmake/arm-none-eabi.cmake" -DSCL_PLATFORM=board -DSCL_BOARD=weact
 cmake --build "$BUILD" --target spifs-reloc -j
 echo "== 3) flash + run (semihosting; fs output also on UART PA9 115200) =="
 killall -s 9 openocd 2>/dev/null || true

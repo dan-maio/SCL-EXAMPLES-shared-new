@@ -10,11 +10,12 @@ string(REPLACE "-fpic " "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 string(REPLACE "-ffreestanding " "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 string(REPLACE "-ffreestanding " "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 if(NOT CMAKE_CROSSCOMPILING)
-    message(FATAL_ERROR "configure with -DCMAKE_TOOLCHAIN_FILE=static-shared/cmake/arm-none-eabi.cmake")
+    message(FATAL_ERROR "configure with -DCMAKE_TOOLCHAIN_FILE=platform/cmake/arm-none-eabi.cmake")
 endif()
 
-get_filename_component(SCL ${CMAKE_SOURCE_DIR}/static-shared ABSOLUTE)
-add_subdirectory(${SCL} scl)                    # scl::static
+get_filename_component(SCL ${CMAKE_SOURCE_DIR}/platform ABSOLUTE)
+set(SCLSH ${CMAKE_SOURCE_DIR}/SCL-shared)
+add_subdirectory(${SCLSH} scl)                    # scl::static
 set(ST ${SCL}/test-static/test-static)          # the static-loader firmware platform
 set(FIX ${CMAKE_SOURCE_DIR}/fixtures/build)
 
@@ -52,7 +53,7 @@ add_dependencies(spi-static-full-ram spifs-fixture)
 
 target_include_directories(spi-static-full-ram PRIVATE
     ${CMAKE_SOURCE_DIR}/include
-    ${SCL}/include ${SCL}/include/static
+    ${SCLSH}/include ${SCLSH}/include/static
     ${ST}/include ${ST}/system/include ${ST}/system/include/cmsis
     ${ST}/system/include/stm32f4-hal ${ST}/system/include/cortexm ${ST}/system/include/diag)
 target_compile_definitions(spi-static-full-ram PRIVATE

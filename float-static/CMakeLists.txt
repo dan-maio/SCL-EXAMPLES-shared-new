@@ -4,11 +4,12 @@
 cmake_minimum_required(VERSION 3.20)
 project(float-static LANGUAGES C CXX)
 if(NOT CMAKE_CROSSCOMPILING)
-    message(FATAL_ERROR "configure with -DCMAKE_TOOLCHAIN_FILE=static-shared/cmake/arm-none-eabi.cmake")
+    message(FATAL_ERROR "configure with -DCMAKE_TOOLCHAIN_FILE=platform/cmake/arm-none-eabi.cmake")
 endif()
 
-get_filename_component(_repo ${CMAKE_SOURCE_DIR}/static-shared ABSOLUTE)   # SCL from git
-add_subdirectory(${_repo} scl)
+get_filename_component(_repo ${CMAKE_SOURCE_DIR}/platform ABSOLUTE)
+    set(SCL ${CMAKE_SOURCE_DIR}/SCL-shared)   # SCL from git
+add_subdirectory(${SCL} scl)
 set(REF ${_repo}/test-xip/test-xip-static-direct)
 set(ST_XIP ${_repo}/test-xip/test-xip-static/semihosting)
 set(_test3 ${_repo}/test-flatfs)
@@ -58,7 +59,7 @@ add_executable(float-static
     ${_test3}/src/fs-archive.cpp ${_test3}/src/flash-prog.c)   # loader from scl::xip-static
 target_include_directories(float-static PRIVATE
     ${CMAKE_SOURCE_DIR}/include ${REF}/include ${ST_XIP}/include ${ST_XIP}/src
-    ${_repo}/include/scl ${_repo}/include ${_test3}/include
+    ${SCL}/include/scl ${SCL}/include ${_test3}/include
     ${_repo}/test/platforms/board/include
     ${_su}/common/firmware/include ${_su}/common/system/include/cmsis
     ${_su}/common/system/include/stm32f4-hal ${_su}/common/system/include/cortexm

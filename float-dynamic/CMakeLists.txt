@@ -1,27 +1,37 @@
 # float-dynamic — POSIX dlopen of a plain -fPIC .so in RAM (Model E).
 #
-# Built by the six-step procedure in SCL-TESTS-shared/docs/import_in_project_full.md
-# (Model E): scl::dynamic-newlib (hosted), the dl:: POSIX facade, imports resolved
-# via the link-time embedded symtab (scl_embed_symtab). Configure with the HOSTED
-# toolchain and -DSCL_HOSTED=ON.
+# Structure of every example here:
+#   SCL-shared/   the loader — a git submodule (the ONLY dependency; cloned
+#                 recursively). Provides scl::* as INTERFACE source libraries.
+#   platform/     the WeAct F411CE board support we must supply because this is a
+#                 bare example (startup, HAL, semihosting, the dl:: facade). A
+#                 real application already has its own — drop platform/ and point
+#                 the include() at your project's board files instead.
+#   fixtures/     the loadable module(s); src/ + this file are the app itself.
+#
+# Model E steps (SCL-shared/docs or SCL-TESTS-shared/docs/import_in_project_full.md):
+#   scl::dynamic-newlib (hosted) + the dl:: POSIX facade; imports resolved via the
+#   link-time embedded symtab (scl_embed_symtab). Hosted toolchain, SCL_HOSTED=ON.
 cmake_minimum_required(VERSION 3.20)
 project(float-dynamic LANGUAGES C CXX)
 
 if(NOT CMAKE_CROSSCOMPILING)
-    message(FATAL_ERROR "Configure with -DCMAKE_TOOLCHAIN_FILE=dynamic-shared/cmake/arm-none-eabi-hosted.cmake")
+    message(FATAL_ERROR "Configure with -DCMAKE_TOOLCHAIN_FILE=platform/cmake/arm-none-eabi-hosted.cmake")
 endif()
 
+# ---- the loader (the one git dependency) ------------------------------------
 set(SCL_HOSTED ON CACHE BOOL "" FORCE)                 # scl::dynamic-newlib needs the hosted parts
-set(SCL ${CMAKE_SOURCE_DIR}/dynamic-shared)            # platform tree; loader symlinked into ./SCL-shared
-add_subdirectory(${SCL} scl)                           # -> ./SCL-shared -> scl::dynamic-newlib
+add_subdirectory(${CMAKE_SOURCE_DIR}/SCL-shared scl)   # -> scl::dynamic-newlib (+ gen-symtab-host)
 
-# hosted WeAct platform + the POSIX dl:: facade + scl_embed_symtab()
+# ---- the board support (we ship it; a real app already has its own) ---------
 set(SCL_PLATFORM "board" CACHE STRING "board (weact/nucleo) or qemu-f411re")
-include(${SCL}/test/platforms/${SCL_PLATFORM}-hosted/cmake/platform-library.cmake)
+include(${CMAKE_SOURCE_DIR}/platform/test/platforms/${SCL_PLATFORM}-hosted/cmake/platform-library.cmake)
 
 add_executable(float-dynamic
     src/main.cpp
+    src/uart.c                                         # USART1 PA9 115200 (bare-metal)
     ${STATIC_UNIFY_DIR}/firmware/src/dl-impl.cpp)      # the dl:: facade (dlopen/dlsym/dlclose)
+target_include_directories(float-dynamic PRIVATE src)
 target_link_libraries(float-dynamic PRIVATE
     platform::${SCL_PLATFORM}-hosted
     scl::dynamic-newlib)

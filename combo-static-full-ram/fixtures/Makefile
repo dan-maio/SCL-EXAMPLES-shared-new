@@ -4,8 +4,8 @@
 TC   ?= /home/dan/.local/xPacks/@xpack-dev-tools/arm-none-eabi-gcc/15.2.1-1.1.1/.content/bin
 CXX  := $(TC)/arm-none-eabi-g++
 READELF := $(TC)/arm-none-eabi-readelf
-ST   := ../static-shared/test-static/test-static
-SCL  := ../static-shared/common-elf-reader/include
+ST   := ../platform/test-static/test-static
+SCL  := ../SCL-shared/common-elf-reader/include
 MCU  := -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 PIC  := -fPIC -fno-inline-functions -fno-common
 INC  := -Iinclude -I$(ST)/include -I$(ST)/system/include/stm32f4-hal \

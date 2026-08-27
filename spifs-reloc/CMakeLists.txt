@@ -5,13 +5,14 @@
 cmake_minimum_required(VERSION 3.20)
 project(spifs-reloc LANGUAGES C CXX)
 if(NOT CMAKE_CROSSCOMPILING)
-    message(FATAL_ERROR "configure with -DCMAKE_TOOLCHAIN_FILE=relocatable-shared/cmake/arm-none-eabi.cmake")
+    message(FATAL_ERROR "configure with -DCMAKE_TOOLCHAIN_FILE=platform/cmake/arm-none-eabi.cmake")
 endif()
 
-set(SCL ${CMAKE_SOURCE_DIR}/relocatable-shared)
+set(SCL ${CMAKE_SOURCE_DIR}/SCL-shared)
+set(PLATFORM ${CMAKE_SOURCE_DIR}/platform)
 add_subdirectory(${SCL} scl)                     # scl::reloc
-set(PLAT ${SCL}/test/platforms/board)            # lean freestanding platform
-set(PLAT_COMMON ${SCL}/test/platforms/common)
+set(PLAT ${PLATFORM}/test/platforms/board)            # lean freestanding platform
+set(PLAT_COMMON ${PLATFORM}/test/platforms/common)
 set(V ${CMAKE_SOURCE_DIR}/vendor)                # locally-copied STM32 HAL
 
 add_executable(spifs-reloc
@@ -55,8 +56,8 @@ execute_process(COMMAND ${CMAKE_C_COMPILER}   ${_mcu} -print-file-name=libm.a   
 target_link_options(spifs-reloc PRIVATE
     -pie -nostartfiles --specs=nano.specs
     LINKER:-Bsymbolic LINKER:-E LINKER:--unresolved-symbols=ignore-in-shared-libs
-    -L${CMAKE_SOURCE_DIR}/ldscripts -L${SCL}/test/platforms/board/ldscripts
-    -T${SCL}/test/platforms/board/ldscripts/sections.ld
+    -L${CMAKE_SOURCE_DIR}/ldscripts -L${PLATFORM}/test/platforms/board/ldscripts
+    -T${PLATFORM}/test/platforms/board/ldscripts/sections.ld
 
     ${_uflags}
     -Wl,--gc-sections -Wl,--no-warn-rwx-segments

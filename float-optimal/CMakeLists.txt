@@ -1,26 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 project(floatapp C CXX)
 
-get_filename_component(SCL "${CMAKE_CURRENT_SOURCE_DIR}/optimal-shared" ABSOLUTE)  # SCL from git
+get_filename_component(SCL "${CMAKE_CURRENT_SOURCE_DIR}/platform" ABSOLUTE)  # board support
+set(SCL_HOSTED OFF)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/SCL-shared scl)   # loader submodule -> scl::optimal
 set(FIX ${CMAKE_SOURCE_DIR}/fixtures)
 
-# ---- SCL loader/patcher + common-elf-reader as INTERFACE source libraries ----
-set(COMMON_ELF_READER_DIR ${SCL}/common-elf-reader)
-include(${SCL}/cmake/scl-lib.cmake)                       # scl::common / static / xip-* + elf-reader
-
-add_library(scl-loader-nopic INTERFACE)
-target_sources(scl-loader-nopic INTERFACE
-    ${SCL}/src/xip/static/nopic.cpp
-    ${SCL}/src/image-memory.cpp
-    ${SCL}/src/link-context.cpp)
-target_include_directories(scl-loader-nopic INTERFACE
-    ${SCL}/include ${SCL}/include/scl ${SCL}/include/xip)
-target_link_libraries(scl-loader-nopic INTERFACE scl::xip-common)
-
-add_library(optimal INTERFACE)
-target_sources(optimal INTERFACE ${SCL}/src/loader.cpp)
-target_include_directories(optimal INTERFACE ${SCL}/include)
-target_link_libraries(optimal INTERFACE scl-loader-nopic)
+# (loader comes from the SCL-shared submodule above: scl::optimal)
 
 # ---- fixtures (loadable .so) ----
 add_subdirectory(fixtures)
@@ -90,7 +76,7 @@ target_compile_definitions(floatapp PRIVATE
     DL_LIB_DIR="${FIX}")
 target_compile_options(floatapp PRIVATE
     $<$<COMPILE_LANGUAGE:CXX>:-include;${SCL}/test/xip-common/include/abort_fix.h>)
-target_link_libraries(floatapp PRIVATE optimal stdc++ m ${LIBSUPCXX} ${LIBGCC})
+target_link_libraries(floatapp PRIVATE scl::optimal stdc++ m ${LIBSUPCXX} ${LIBGCC})
 target_link_options(floatapp PRIVATE
     -pie -nostartfiles --specs=nano.specs
     LINKER:-Bsymbolic LINKER:-E LINKER:--unresolved-symbols=ignore-in-shared-libs

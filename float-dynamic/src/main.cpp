@@ -4,9 +4,10 @@
  * Model E (import_in_project_full.md): scl::dynamic-newlib, hosted POSIX
  * dlopen/dlsym/dlclose over the dl:: facade; the module is a plain -fPIC .so
  * copied into a RAM buffer. Simple: open, resolve two exports by name, call,
- * close. WeAct F411CE, semihosting console.
+ * close. Output on USART1 (PA9, 115200) AND the semihosting console. WeAct.
  */
 #include <cstdio>
+#include "uart.h"
 #include "firmware/dl-impl.hpp"
 
 /* the standard POSIX API, backed by the SCL dl:: facade */
@@ -21,6 +22,9 @@ const char* dlerror(void)                { return dl::dlerror(); }
 #define SCL_SO_DIR "."
 #endif
 
+/* print one line to BOTH the UART (PA9, 115200) and the semihosting console */
+static void line(const char* s) { uart_puts(s); puts(s); }
+
 /* tiny float -> "int.frac" (3 decimals), no _printf_float needed */
 static void fstr(float v, char* p) {
     if (v < 0) { *p++ = '-'; v = -v; }
@@ -33,22 +37,23 @@ static void fstr(float v, char* p) {
 }
 
 int main(void) {
-    puts("float-dynamic: POSIX dlopen of floatlib.so (RAM / scl::dynamic-newlib)");
+    uart_init();
+    line("float-dynamic: POSIX dlopen of floatlib.so (RAM / scl::dynamic-newlib)");
 
     void* h = dlopen(SCL_SO_DIR "/floatlib.so", 0);
-    if (!h) { printf("  dlopen failed: %s\nRESULT: FAILURE\n", dlerror()); return 1; }
+    if (!h) { line("  dlopen failed"); line("RESULT: FAILURE"); for (;;) {} }
 
     float (*add)(float, float) = (float (*)(float, float))dlsym(h, "float_add");
     float (*mul)(float, float) = (float (*)(float, float))dlsym(h, "float_mul");
-    if (!add || !mul) { printf("  dlsym failed: %s\nRESULT: FAILURE\n", dlerror()); return 1; }
+    if (!add || !mul) { line("  dlsym failed"); line("RESULT: FAILURE"); for (;;) {} }
 
-    char sa[16], sm[16];
+    char sa[16], sm[16], l[64];
     fstr(add(2.5f, 3.5f), sa);          /* 6.000 */
     fstr(mul(2.5f, 3.5f), sm);          /* 8.750 */
-    printf("  float_add(2.500, 3.500) = %s\n", sa);
-    printf("  float_mul(2.500, 3.500) = %s\n", sm);
+    std::snprintf(l, sizeof l, "  float_add(2.500, 3.500) = %s", sa); line(l);
+    std::snprintf(l, sizeof l, "  float_mul(2.500, 3.500) = %s", sm); line(l);
 
     dlclose(h);
-    printf("RESULT: SUCCESS\n");
+    line("RESULT: SUCCESS");
     for (;;) { }
 }
