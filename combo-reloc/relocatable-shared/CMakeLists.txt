@@ -3,5 +3,5 @@ cmake_minimum_required(VERSION 3.20)
 # shared SCL-shared clone at the examples root (include/ src/ common-elf-reader/
 # are symlinks into it). add_subdirectory(${SCL}) lands here and forwards.
 if(NOT TARGET scl-common)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../SCL-shared ${CMAKE_BINARY_DIR}/_scl-shared)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../SCL-shared ${CMAKE_BINARY_DIR}/_scl-shared)
 endif()
