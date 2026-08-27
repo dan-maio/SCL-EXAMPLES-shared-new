@@ -1,51 +1,51 @@
 [submodule "combo-optimal/SCL-shared"]
 	path = combo-optimal/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "combo-reloc/SCL-shared"]
 	path = combo-reloc/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "combo-static/SCL-shared"]
 	path = combo-static/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "combo-static-full-ram/SCL-shared"]
 	path = combo-static-full-ram/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "float-dynamic/SCL-shared"]
 	path = float-dynamic/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "float-optimal/SCL-shared"]
 	path = float-optimal/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "float-reloc/SCL-shared"]
 	path = float-reloc/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "float-static/SCL-shared"]
 	path = float-static/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "spifs-optimal/SCL-shared"]
 	path = spifs-optimal/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "spifs-reloc/SCL-shared"]
 	path = spifs-reloc/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "spifs-static/SCL-shared"]
 	path = spifs-static/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "spi-static-full-ram/SCL-shared"]
 	path = spi-static-full-ram/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "combo-dynamic/SCL-shared"]
 	path = combo-dynamic/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "float-dynamic-xip/SCL-shared"]
 	path = float-dynamic-xip/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "spifs-dynamic-xip/SCL-shared"]
 	path = spifs-dynamic-xip/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "combo-dynamic-xip/SCL-shared"]
 	path = combo-dynamic-xip/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
 [submodule "spifs-dynamic/SCL-shared"]
 	path = spifs-dynamic/SCL-shared
-	url = /home/dan/Downloads/SCL-shared.git
+	url = /home/dan/Downloads/GIT/SCL-shared.git
