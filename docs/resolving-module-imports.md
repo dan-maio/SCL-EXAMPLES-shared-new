@@ -121,6 +121,70 @@ resolver stays fully generic.
 
 ---
 
+## 3½. Why a runtime symbol table at all? (headers, `.symtab` vs `.dynsym`)
+
+A fair question: *if every exported function is declared in a header, why does the
+loader need a symbol table on the device at all?* Because a header and a symbol
+table answer two different questions at two different times:
+
+- **Header (`.h`) — compile time, on your PC:** *what does `float_add` look like* —
+  its name, argument/return types, calling convention. Enough for the compiler to
+  emit a correct call, or a **relocation** (a placeholder saying "put the address
+  of the symbol `float_add` here"). A header carries **no address**.
+- **Symbol table — run time, on the device:** *where does `float_add` actually
+  live* — the numeric address. For code placed in memory at load time, that
+  address does not exist until the module is loaded, long after the header was
+  consumed and discarded. Headers aren't even present on the chip.
+
+For an ordinary program the **linker** resolves every name→address at link time and
+bakes the numbers in; the name table it used (`.symtab`) is then stripped and the
+firmware needs no runtime table. The moment you **load code at runtime**, two
+bindings can no longer be done by the linker and must happen on the device *from a
+string*: the module's **UND imports** (`spifs.so` calling `HAL_SPI_Init` in `main`)
+and **`dlsym(h, "name")`**. Both need a name→address map that is present in the
+loaded image — that is the whole reason a runtime symbol table exists.
+
+### Why `.symtab` is not that table, and `.dynsym` is
+
+`.symtab` is `SHT_SYMTAB` **without `SHF_ALLOC`** → the linker never puts it in a
+`PT_LOAD` segment and `objcopy -O ihex/binary` drops it. So it is simply **not in
+flash at runtime**. `.dynsym` is `SHF_ALLOC` **by design** — it lives in a
+`PT_LOAD`, comes with `.hash`/`.gnu.hash` for O(1) lookup, and is **discoverable**
+because `_DYNAMIC` points at it. That runtime plumbing is exactly what `from_self`
+walks, and it only exists in a **`-pie`/shared** image (§3).
+
+### "Can we force `.symtab` into `PT_LOAD`?"
+
+Technically yes, but it is strictly worse than the two clean options:
+
+```sh
+arm-none-eabi-objcopy --set-section-flags .symtab=alloc,load \
+                      --set-section-flags .strtab=alloc,load  fw.elf fw2.elf
+```
+
+Now they reach the image, **but**: you carry the *entire, unfiltered* symtab
+(every local + section symbol — huge); you must **parse raw `Elf32_Sym` + a string
+table** on the MCU yourself; and nothing tells the firmware **where it landed** —
+`.symtab` has no `.hash` and no `_DYNAMIC` pointer, so you'd hardcode a linker
+symbol and linear-scan. (A linker-script `.syms : { *(.symtab) } > FLASH` is
+unreliable — those sections are emitted after layout — so you end up needing the
+objcopy trick anyway.) On a fixed-address firmware the `st_value` fields *are*
+valid runtime addresses, so correctness isn't the blocker — **size, discovery, and
+the need for a parser** are.
+
+Forcing `.symtab` loadable is really deciding to build a runtime name→address map —
+which is the right idea, just not from raw `.symtab`. Use one of:
+
+| Approach | What you get | Used by |
+|---|---|---|
+| **Link `-pie`** | a real `.dynsym`: allocated, hashed, found via `_DYNAMIC` (`from_self`) | the XIP models (C, D) |
+| **Embedded symtab** (`scl_embed_symtab` / `gen-symtab`) | a **filtered** (GLOBAL/WEAK, defined, no `_`-internals), compact name→address blob in flash + a tiny reader | the dynamic models (E, F) — a bare, non-`-pie` firmware has no `.dynsym` |
+
+`gen-symtab` is precisely "the useful subset of `.symtab`, small enough to keep in
+flash and trivial to parse" — the *good* version of forcing `.symtab` loadable.
+
+---
+
 ## 4. Per-loader-model summary
 
 | Model | Firmware already `-pie`? | Import resolution |

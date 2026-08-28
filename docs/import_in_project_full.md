@@ -681,6 +681,11 @@ ways; pick by loader:
 
 Full treatment, the `-pie` requirement, and the gotchas: **`resolving-module-imports.md`**.
 
+> **Why a runtime symbol table at all** — if headers already declare every export,
+> why `.dynsym`/an embedded symtab? Because a header is compile-time *types* with no
+> address; a runtime load needs a name→address map on the device. See
+> `resolving-module-imports.md` §3½ (incl. "can we force `.symtab` into `PT_LOAD`?").
+
 ---
 
 ## 6. Side-by-side recap
