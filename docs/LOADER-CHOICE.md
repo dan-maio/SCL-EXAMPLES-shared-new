@@ -13,9 +13,9 @@ forced, and each choice comes with costs you cannot avoid. This document lays
 out those questions, the trade-offs behind each, and which **test tree** in this
 monorepo is the right starting point for each combination.
 
-> The loader lives once in the **`SCL-shared` submodule** (five cases:
-> `scl::reloc`, `scl::static`, `scl::xip-static`, `scl::optimal`, and the dynamic
-> `scl::dynamic-nolib` / `scl::dynamic-newlib`); the `*-shared` folders are the
+> The loader lives once in the **`SCL-shared` submodule** (seven cases:
+> `scl::reloc`, `scl::static`, `scl::xip-static`, `scl::optimal`, the dynamic
+> `scl::dynamic-nolib` / `scl::dynamic-newlib`, and `scl::overlay`); the `*-shared` folders are the
 > test trees that consume it. Everything here is **hard-float only**
 > (`-mfloat-abi=hard -mfpu=fpv4-sp-d16`).
 >
@@ -141,7 +141,7 @@ So:
 
 ---
 
-## 3. The three models, one section each
+## 3. The loader models, one section each
 
 ### 3a. RAM execution — the cheapest thing that can possibly work
 
@@ -271,6 +271,38 @@ Imports resolve against a **symbol table baked into flash** from `main`'s own EL
 - **Use it when:** you specifically want desktop-style `dlopen` semantics
   (handles, `dlerror`, clean `dlclose`), not the tightest direct call.
 
+### 3e. Overlay — time-share one SRAM window between *known* modules (`scl::overlay`)
+
+**Test tree: `overlay-shared` (`scl::overlay`).**
+
+The other models load a module whose address is *unknown until runtime*. The
+overlay technique is the opposite: the modules are **built with the firmware** and
+bound at **link time to the SAME run address** (a shared SRAM window), then stored
+back-to-back in flash. "Loading" a module is just a **`memcpy` from its flash LMA
+to the window VMA + a `DSB`/`ISB`** — no ELF parse, no relocation, no GOT, no
+`r10`, no `dlsym`. Only **one** module is resident in the window at a time; you
+swap by copying the next one in.
+
+```c
+scl_overlay_load(&ov_ovcpp);   // memcpy flash->window + barrier
+ovcpp_fcompute(2, 100);        // direct call — the address was fixed at link time
+```
+
+Modules are `-fno-pic -mlong-calls` (they execute in the SRAM window but call back
+into flash across more than a Thumb-BL's reach). The application owns the overlay
+linker script (template: `src/overlay/ldscripts/overlay-fragment.ld`).
+
+- **Cost:** the modules are **not** independent artifacts — they are part of your
+  build, and only one shares the window at a time. You give up runtime/3rd-party
+  loading entirely.
+- **In return:** the **cheapest possible "load"** (a `memcpy`), direct calls, and
+  no PIC/GOT/`r10`/relocation machinery at all.
+- **Use it when:** you have a fixed set of your *own* large routines that don't all
+  need to be resident at once, and want to time-share SRAM for the cost of a copy —
+  classic embedded bank-switching. **Not** for loading arbitrary external `.so`.
+  (The `overlay-shared` test benchmarks it head-to-head against `dlopen` — same
+  results, a fraction of the machinery.)
+
 ---
 
 ## 4. What "direct calls" actually requires
@@ -337,6 +369,12 @@ Answer the two questions from §1 and read off the row:
 | Yes | **No** | direct by-name | `optimal-shared` | `-fno-pic` fixed windows (auto-derived) | yes, but generated | none |
 | No (RAM) | — | **`dlopen` handle** | `dynamic-shared` (`scl::dynamic-newlib`) | POSIX `dlopen` on a hosted firmware | none | none (via ptr) |
 | No or **Yes** | XIP: **Yes** | **`dlopen` handle** | `dynamic-shared` (`scl::dynamic-nolib` / `xip-`) | freestanding `dl::`; XIP form runs from flash | none | none / `r10` (XIP) |
+| — (own modules) | free | direct by-name | `overlay-shared` (`scl::overlay`) | link-time-bound modules; `memcpy` LMA→window | fixed at link | none |
+
+> The last row (**overlay**) is a different problem entirely: not loading an
+> *unknown* module at runtime, but time-sharing one SRAM window between your *own*
+> build-time modules. "Load" = a `memcpy` (§3e). Pick it only when the modules are
+> yours and built with the firmware — never for third-party `.so`.
 
 The two direct-call RAM rows differ in module *format*: `ET_REL` (`scl::reloc`) is
 the leanest loader; the `-fPIC` `.so` (`scl::static`) is the classic patcher —
