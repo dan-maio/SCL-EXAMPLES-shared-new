@@ -58,3 +58,6 @@
 [submodule "combo-overlay/SCL-shared"]
 	path = combo-overlay/SCL-shared
 	url = /home/dan/Downloads/GIT/SCL-shared.git
+[submodule "float-static-full-ram/SCL-shared"]
+	path = float-static-full-ram/SCL-shared
+	url = /home/dan/Downloads/GIT/SCL-shared.git
