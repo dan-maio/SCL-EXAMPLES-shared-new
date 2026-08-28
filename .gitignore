@@ -10,6 +10,12 @@
 **/fixtures/*.generated.ld
 **/fixtures/link.txt
 **/fixtures/manifest.txt
-# run.sh-restored HAL vendor snapshots (not needed; platform tree is vendored)
+# run.sh-restored HAL vendor snapshots (not needed where the platform tree is
+# vendored). The reloc/overlay examples have no board-hosted platform, so they
+# commit their own vendor/ snapshot instead — un-ignore those four.
 */vendor/
+!combo-reloc/vendor/
+!spifs-reloc/vendor/
+!combo-overlay/vendor/
+!spifs-overlay/vendor/
 /README.pdf

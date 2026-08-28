@@ -6,7 +6,7 @@ CXX  := $(TC)/arm-none-eabi-g++
 LD   := $(TC)/arm-none-eabi-ld
 READELF := $(TC)/arm-none-eabi-readelf
 V    := ../vendor
-SCL  := ../relocatable-shared/common-elf-reader/include
+SCL  := ../SCL-shared/common-elf-reader/include
 MCU  := -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 REL  := -mlong-calls -fno-pic
 INC  := -Iinclude -I$(V)/include -I$(V)/include/stm32f4-hal -I$(V)/include/cmsis -I$(SCL)

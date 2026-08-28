@@ -11,16 +11,6 @@ SCL="$HERE/SCL-shared"
 PLATFORM="$HERE/platform"
 GIT_REMOTE="${GIT_REMOTE:-/home/dan/Downloads/GIT}"
 # loader provided by the shared SCL-shared clone (symlinked into $SCL); no clone needed
-# relocatable-shared ships no STM32 HAL; copy it from the reference repo (once)
-REF="${REF_REPO:-/home/dan/Documents/shared-loaders-cortex-m-qemu}"
-if [ ! -d "$HERE/vendor/stm32f4-hal" ]; then
-  V="$REF/test/platforms/board-hosted/vendor"
-  mkdir -p "$HERE/vendor/stm32f4-hal" "$HERE/vendor/cmsis" "$HERE/vendor/include"
-  cp "$V"/common/system/src/stm32f4-hal/*.c "$HERE/vendor/stm32f4-hal/"
-  cp "$V"/common/system/src/cmsis/system_stm32f4xx.c "$HERE/vendor/cmsis/"
-  cp -r "$V"/common/system/include/. "$HERE/vendor/include/"
-  cp "$V"/common/firmware/include/stm32f4xx_hal_conf.h "$HERE/vendor/include/"
-fi
 TC="${ARM_TOOLCHAIN_BIN:-/home/dan/.local/xPacks/@xpack-dev-tools/arm-none-eabi-gcc/15.2.1-1.1.1/.content/bin}"
 export PATH="$TC:$PATH"
 OPENOCD="${OPENOCD:-$(command -v openocd || echo /home/dan/.local/xPacks/@xpack-dev-tools/openocd/0.12.0-7.1/.content/bin/openocd)}"

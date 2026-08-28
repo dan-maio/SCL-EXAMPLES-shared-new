@@ -7,7 +7,7 @@
 TC   ?= /home/dan/.local/xPacks/@xpack-dev-tools/arm-none-eabi-gcc/15.2.1-1.1.1/.content/bin
 CXX  := $(TC)/arm-none-eabi-g++
 READELF := $(TC)/arm-none-eabi-readelf
-LD   := ../static-shared/test-xip/fixtures-src/ldscripts/xip-split.ld
+LD   := ../platform/test-xip/fixtures-src/ldscripts/xip-split.ld
 MCU  := -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 PIC  := -fpic -msingle-pic-base -mpic-register=r10 -mno-pic-data-is-text-relative
 CXXF := $(MCU) $(PIC) -O0 -ffunction-sections -fdata-sections -std=c++20 \

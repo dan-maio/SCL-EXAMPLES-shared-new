@@ -3,9 +3,9 @@
 TC   ?= /home/dan/.local/xPacks/@xpack-dev-tools/arm-none-eabi-gcc/15.2.1-1.1.1/.content/bin
 CXX  := $(TC)/arm-none-eabi-g++
 READELF := $(TC)/arm-none-eabi-readelf
-SU   := ../static-shared/test/platforms/board-hosted/vendor
-SCL  := ../static-shared/common-elf-reader/include
-LD   := ../static-shared/test-xip/fixtures-src/ldscripts/xip-split.ld
+SU   := ../platform/test/platforms/board-hosted/vendor
+SCL  := ../SCL-shared/common-elf-reader/include
+LD   := ../platform/test-xip/fixtures-src/ldscripts/xip-split.ld
 MCU  := -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 PIC  := -fpic -msingle-pic-base -mpic-register=r10 -mno-pic-data-is-text-relative
 INC  := -Iinclude -I$(SU)/common/firmware/include -I$(SU)/common/system/include/stm32f4-hal \
