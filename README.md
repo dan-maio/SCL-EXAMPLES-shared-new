@@ -38,11 +38,13 @@ byte-exact, XIP+r10/no-r10 deregister and re-patch). `combo-optimal` also links
 both `.so` at the **same** SRAM window. See `../docs/import_in_project_full.md`
 §4½. All four verified on WeAct F411CE hardware.
 
-### `spi-static-full-ram` — the classic patcher
+### `float-static-full-ram` / `spi-static-full-ram` — the classic patcher
 
-A fourth SPI-flatfs variant using **`scl::static`**: the same fixture built as a
-plain **`-fPIC` `.so`** is copied **whole into a RAM buffer** and run there — the
-dlopen-style patcher. `r10`-free, **bare direct calls** (`patch_main`), no
+The Model-B variants using **`scl::static`**: the fixture built as a plain
+**`-fPIC` `.so`** is copied **whole into a RAM buffer** and run there — the
+dlopen-style patcher. `float-static-full-ram` is the minimal shape (the tiny
+`float_add`/`float_mul` lib, no imports); `spi-static-full-ram` is the real
+W25Q64 driver. Both are `r10`-free, **bare direct calls** (`patch_main`), no
 `-pie`; the module's imports resolve against an `elf_loader::symbol_table` that
 `main` fills with `add_global(name, addr)`. One `scl::Module::load_file()` does
 copy + relocate + patch + constructors. See `../docs/LOADER-CHOICE.md` §3a and

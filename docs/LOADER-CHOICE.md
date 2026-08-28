@@ -63,7 +63,7 @@ to the XIP loader and it *correctly* falls back to copy-whole-into-RAM anyway. H
 - **Model B — `scl::static`** → **direct by-name calls** (the loader patches main's
   GOT so `float_add(a,b)` just works). The most natural drop-in for "a `.so` + `.h`":
   the header gives your compiler the signatures, the loader gives the addresses,
-  calls look normal. *Reference: `spi-static-full-ram`.*
+  calls look normal. *Reference: `float-static-full-ram` (minimal), `spi-static-full-ram`.*
 - **Model E — `scl::dynamic-newlib`** → **POSIX `dlopen`/`dlsym`/`dlclose`**
   (handle-based). Pick it only if you specifically want the `dlopen` contract.
   *Reference: `float-dynamic`, `spifs-dynamic`.*
@@ -179,7 +179,8 @@ script, no reserved windows, no hand-made files.** You cannot do *less* than
 > `add_global(name, addr)` (a third resolution style, next to a resolver table
 > and `.dynsym`/`from_self`). It costs a bit more loader machinery than `ET_REL`
 > (a real GOT/PLT, the app's own GOT linker scripts) but is the most "dlopen-like"
-> and needs no `-pie`. Verified by the `spi-static-full-ram` example.
+> and needs no `-pie`. Verified by the `float-static-full-ram` and
+> `spi-static-full-ram` examples.
 
 ### 3b. XIP without `r10` — fixed windows, but generated for you
 

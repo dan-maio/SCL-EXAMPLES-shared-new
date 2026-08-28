@@ -83,7 +83,7 @@ third-party `.so` (see Model G below and `LOADER-CHOICE.md` §3e).
 Each of A–F has three worked examples — `float-<prefix>` (minimal), `spifs-<prefix>`
 (the W25Q64 SPI driver + flat-fs), `combo-<prefix>` (load a float module, keep the
 result, unload, load the SPI module, persist it); **G adds the same three**
-(`float-/spifs-/combo-overlay`). All 20 are verified on WeAct. A and B run from RAM
+(`float-/spifs-/combo-overlay`). All 21 are verified on WeAct. A and B run from RAM
 and differ only in module *format* (`ET_REL` object vs a real `-fPIC .so`); **E and
 F are the POSIX `dlopen` family** — handle-based `dlsym`→pointer instead of a
 direct by-name call.
@@ -224,7 +224,7 @@ Two sub-cases, by how many symbols the module imports:
 
 ---
 
-## Model B — RAM execution, real `-fPIC` `.so` (`scl::static` — see `spi-static-full-ram/`, `combo-static-full-ram/`)
+## Model B — RAM execution, real `-fPIC` `.so` (`scl::static` — see `float-static-full-ram/`, `spi-static-full-ram/`, `combo-static-full-ram/`)
 
 **Use when:** you want a genuine `.so` (dlopen-style) rather than an `ET_REL`
 object, still running fully in RAM. `r10`-free (PC-relative GOT), bare direct
@@ -824,7 +824,7 @@ Full treatment, the `-pie` requirement, and the gotchas: **`resolving-module-imp
 
 | | **A — RAM/ET_REL** | **B — RAM/`.so`** | **C — XIP+r10** | **D — XIP no-r10** | **E — dlopen/RAM** | **F — dlopen/XIP** | **G — overlay** |
 |---|---|---|---|---|---|---|---|
-| Example | `*-reloc` | `spi-/combo-static-full-ram` | `*-static` | `*-optimal` | `*-dynamic` | `*-dynamic-xip` | `*-overlay` |
+| Example | `*-reloc` | `*-static-full-ram` | `*-static` | `*-optimal` | `*-dynamic` | `*-dynamic-xip` | `*-overlay` |
 | Target | `scl::reloc` | `scl::static` | `scl::xip-static` | `optimal` | `scl::dynamic-newlib` | `scl::xip-dynamic-newlib` | `scl::overlay` |
 | Module build | `-mlong-calls -fno-pic -r` | `-fPIC -shared` | `-fPIC -msingle-pic-base` split | `-fno-pic`, auto-windows | `-fPIC -shared` | `-fpic -msingle-pic-base` split | `-fno-pic -mlong-calls`, link-placed |
 | Module addresses | none | none | none | derived by build | none | none | link-time (the window) |
@@ -840,7 +840,7 @@ Full treatment, the `-pie` requirement, and the gotchas: **`resolving-module-imp
 
 ## 7. Gotchas that bite in more than one model
 
-These are the ones that actually cost time building the 17 examples in this repo —
+These are the ones that actually cost time building the 21 examples in this repo —
 each is a real fault seen on the WeAct, with its fix.
 
 - **Match float ABI, and use `float` not `double`.** Fixture↔firmware ABI must be
@@ -896,7 +896,7 @@ above and **verified on WeAct F411CE**. When a flag is unclear, copy the example
 | Model | SCL target | Examples (copy the whole folder) |
 |---|---|---|
 | **A** RAM/ET_REL | `scl::reloc` | `float-reloc`, `spifs-reloc`, `combo-reloc` |
-| **B** RAM full `.so` | `scl::static` | `spi-static-full-ram`, `combo-static-full-ram` |
+| **B** RAM full `.so` | `scl::static` | `float-static-full-ram`, `spi-static-full-ram`, `combo-static-full-ram` |
 | **C** XIP + r10 | `scl::xip-static` | `float-static`, `spifs-static`, `combo-static` |
 | **D** XIP no-r10 | `scl::optimal` | `float-optimal`, `spifs-optimal`, `combo-optimal` |
 | **E** dynamic dlopen (RAM) | `scl::dynamic-newlib` | `float-dynamic`, `spifs-dynamic`, `combo-dynamic` |
@@ -980,5 +980,5 @@ C, D and F(XIP) **must** keep `-nostdlib -nodefaultlibs` (or the C fixtures merg
 | **G** | **link time** — the module is linked with `main`, no runtime resolver | **bare** direct (link-bound to the window) | `scl_overlay_load(&r, i)` = `memcpy` LMA→window + DSB/ISB | none — the next `scl_overlay_load` `memcpy`s a different module over the window |
 
 > If in doubt, copy the matching example folder in this repo: `float-*` (minimal),
-> `spifs-*` / `spi-static-full-ram` (real W25Q64 driver), `combo-*` (load/unload/
-> reload). All 17 are verified on WeAct F411CE — see §8.
+> `spifs-*` / `*-static-full-ram` (real W25Q64 driver, plus the minimal `float-static-full-ram`), `combo-*` (load/unload/
+> reload). All 21 are verified on WeAct F411CE — see §8.
