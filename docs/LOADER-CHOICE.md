@@ -25,6 +25,67 @@ monorepo is the right starting point for each combination.
 
 ---
 
+## 0. Special case: you were handed a prebuilt `.so` + `.h`, nothing else
+
+If you **cannot rebuild the fixture** — someone gave you a binary `.so` and its
+header and no source — then the decision below is **already made for you**, and
+most models are off the table. A loader model isn't a free choice: reloc, XIP+r10,
+and optimal each need the fixture built with *their specific flags*, which you
+can't apply to a binary you didn't compile.
+
+**First, inspect what you actually have:**
+
+```sh
+readelf -h  lib.so | grep Type            # ET_DYN (Shared object) — good. ET_REL would be a .rel.o
+readelf -A  lib.so | grep -i 'arch\|VFP'  # MUST match your MCU/ABI (Cortex-M4, hard-float)
+readelf -l  lib.so | awk '/LOAD/'         # segment layout
+readelf -W --dyn-syms lib.so | awk '$7=="UND"'   # imports YOU must still provide from main
+```
+
+A stock third-party `.so` is almost always a **plain `-fPIC` ET_DYN** (PC-relative
+GOT, no `r10`). What that allows:
+
+| Model | Fixture must have been built as… | Works from a stock `.so`? |
+|---|---|---|
+| **A** reloc | an `ET_REL` `.rel.o` (`ld -r`) | ❌ you have a `.so`, not a `.rel.o` |
+| **C** XIP + r10 | `-fpic -msingle-pic-base -mpic-register=r10` **split**, VA==file_offset | ❌ a stock `.so` isn't r10-split → `can_xip` rejects it |
+| **D** optimal (XIP) | `-fno-pic` linked at a **derived fixed address** | ❌ needs a rebuild at your window |
+| **B** static-full-ram | plain `-fPIC -shared` | ✅ **yes** |
+| **E** dynamic `dlopen` | plain `-fPIC -shared` | ✅ **yes** |
+
+So: **a prebuilt `.so` runs from RAM, via Model B or Model E — never XIP.** XIP
+needs the special r10-split layout the dedicated build produces; hand a stock `.so`
+to the XIP loader and it *correctly* falls back to copy-whole-into-RAM anyway. Here
+"**RAM, not XIP**" is not a preference — it is forced by what you were given.
+
+**B vs E — pick by call style:**
+
+- **Model B — `scl::static`** → **direct by-name calls** (the loader patches main's
+  GOT so `float_add(a,b)` just works). The most natural drop-in for "a `.so` + `.h`":
+  the header gives your compiler the signatures, the loader gives the addresses,
+  calls look normal. *Reference: `spi-static-full-ram`.*
+- **Model E — `scl::dynamic-newlib`** → **POSIX `dlopen`/`dlsym`/`dlclose`**
+  (handle-based). Pick it only if you specifically want the `dlopen` contract.
+  *Reference: `float-dynamic`, `spifs-dynamic`.*
+
+**Two things the `.h` does NOT solve** (independent of the model):
+
+1. **The library's own imports.** The `.so` still imports symbols from *your*
+   firmware (libc/libm, maybe HAL — the `UND` list above). You must provide them —
+   Model B via `symbol_table::add_global(name,&fn)`, Model E via the embedded
+   symtab + `-u` anchors. A symbol the `.so` needs that your firmware can't supply
+   means it won't load, whatever the model.
+2. **ABI match.** If `readelf -A` shows a different arch or float ABI than your
+   firmware (soft-float, Cortex-A, …), the `.so` is unusable as-is — no loader
+   fixes that; it must be rebuilt for your target.
+
+**Bottom line:** binary `.so` + `.h` only ⇒ load it **into RAM** with **`scl::static`
+(Model B)** for direct by-name calls, or **`scl::dynamic-newlib` (Model E)** for
+`dlopen`. If you *can* rebuild the fixture, the rest of this document opens up XIP
+and the leaner formats.
+
+---
+
 ## 1. The two questions that decide everything
 
 Everything below hinges on two yes/no questions about *your* product:

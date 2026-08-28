@@ -80,6 +80,12 @@ verified on WeAct. A and B run from RAM and differ only in module *format*
 (`ET_REL` object vs a real `-fPIC .so`); **E and F are the POSIX `dlopen` family**
 — handle-based `dlsym`→pointer instead of a direct by-name call.
 
+> **Can't rebuild the fixture?** If you were handed a binary `.so` + `.h` only,
+> your choice is forced: a stock `-fPIC .so` runs **from RAM** via **Model B**
+> (`scl::static`, direct by-name calls) or **Model E** (`scl::dynamic-newlib`,
+> `dlopen`) — never XIP/reloc/optimal (those need the fixture's own build flags).
+> See `LOADER-CHOICE.md` §0.
+>
 > There is also a freestanding, no-libc `dlopen` (`scl::dynamic-nolib` /
 > `scl::xip-dynamic-nolib`) — same API as E/F without newlib. The examples here use
 > the newlib flavour; swap the target + drop `SCL_HOSTED` for the nolib one.
