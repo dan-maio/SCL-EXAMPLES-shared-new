@@ -1,4 +1,4 @@
-# Building an app with SCL-shared — a step-by-step guide for all six loader models
+# Building an app with SCL-shared — a step-by-step guide for all seven loader models
 
 This is the practical companion to **`LOADER-CHOICE.md`**. That document tells you
 *which* loader model fits your product (RAM vs XIP, `r10` vs no-`r10`, and which
@@ -62,7 +62,7 @@ enables semihosting. `RUN_MS=10000 ./run.sh` auto-shuts-down after 10 s; the SPI
 examples need a longer window (flash erase), the full-in-RAM ones longer still
 (verbose per-symbol loader logging).
 
-## The six models at a glance
+## The seven models at a glance
 
 | # | Model | Example prefix | SCL target | Module built | Runs from | `r10` | Call site |
 |---|---|---|---|---|---|---|---|
@@ -72,13 +72,21 @@ examples need a longer window (flash erase), the full-in-RAM ones longer still
 | **D** | XIP, no `r10` | `*-optimal` | `scl::optimal` | `-fno-pic` fixed windows | flash-window (RAM) | no | **bare** direct |
 | **E** | dynamic, hosted POSIX | `*-dynamic` | `scl::dynamic-newlib` | `-fPIC -shared` | RAM (buffer) | no | `dlopen`/`dlsym`→ptr |
 | **F** | dynamic, XIP | `*-dynamic-xip` | `scl::xip-dynamic-newlib` | `-fpic -msingle-pic-base` split | flash (text) | **yes** | `dlopen`/`dlsym`→ptr + `r10` |
+| **G** | overlay (own modules) | `*-overlay` | `scl::overlay` | `-fno-pic -mlong-calls`, link-placed | RAM window (`memcpy`) | no | **bare** direct (link-bound) |
 
-Each row has three worked examples in this repo — `float-<prefix>` (minimal),
-`spifs-<prefix>` (the W25Q64 SPI driver + flat-fs), `combo-<prefix>` (load a float
-module, keep the result, unload, load the SPI module, persist it). All 17 are
-verified on WeAct. A and B run from RAM and differ only in module *format*
-(`ET_REL` object vs a real `-fPIC .so`); **E and F are the POSIX `dlopen` family**
-— handle-based `dlsym`→pointer instead of a direct by-name call.
+The first six load a module whose address is unknown until runtime. **Model G is
+different in kind:** the "modules" are built *with the firmware* and bound at link
+time to a shared SRAM window; "loading" is a `memcpy` — no ELF, no relocation, no
+`dlsym`. Use it to time-share SRAM between your *own* build-time routines, not for
+third-party `.so` (see Model G below and `LOADER-CHOICE.md` §3e).
+
+Each of A–F has three worked examples — `float-<prefix>` (minimal), `spifs-<prefix>`
+(the W25Q64 SPI driver + flat-fs), `combo-<prefix>` (load a float module, keep the
+result, unload, load the SPI module, persist it); **G adds the same three**
+(`float-/spifs-/combo-overlay`). All 20 are verified on WeAct. A and B run from RAM
+and differ only in module *format* (`ET_REL` object vs a real `-fPIC .so`); **E and
+F are the POSIX `dlopen` family** — handle-based `dlsym`→pointer instead of a
+direct by-name call.
 
 > **Can't rebuild the fixture?** If you were handed a binary `.so` + `.h` only,
 > your choice is forced: a stock `-fPIC .so` runs **from RAM** via **Model B**
@@ -577,6 +585,118 @@ r10 base (XIP).
 
 ---
 
+## Model G — overlay (`scl::overlay` — see `float-overlay/`, `spifs-overlay/`, `combo-overlay/`)
+
+**Use when:** you have a fixed set of your *own* routines that don't all need to be
+resident at once, and want to time-share SRAM for the cost of a `memcpy`. This is
+**not** runtime loading — the modules are built *with* the firmware. There is no
+`.so`/`.rel.o`, no ELF parse, no relocation, no resolver: the modules are bound at
+**link time** to one shared SRAM window and called directly by name. "Loading" a
+module copies its bytes from flash into the window. Only one is resident at a time.
+
+### Step 1 — Write the module sources (plain, `-fno-pic -mlong-calls`)
+
+The modules are ordinary `.c`/`.cpp` in `fixtures/src/`, compiled with the firmware
+but with `-fno-pic -mlong-calls` (they run in the SRAM window and call back into
+flash across more than a Thumb-`BL`'s reach). No section attributes needed — the
+linker script gathers each module's objects into its overlay section (Step 3).
+
+```c
+// fixtures/src/ovadd.c  (float-overlay module 1)
+float ov_add(float a, float b) { return a + b; }
+```
+
+### Step 2 — Firmware CMake
+
+Compile the module sources into the firmware with the overlay flags, link
+`scl::overlay`, and use the overlay linker script:
+
+```cmake
+add_subdirectory(${CMAKE_SOURCE_DIR}/SCL-shared scl)          # -> scl::overlay
+add_executable(my_fw src/main.cpp src/uart.c ${PLATFORM_SOURCES}
+    fixtures/src/ovadd.c fixtures/src/ovmul.c)                # the overlay modules
+set_source_files_properties(fixtures/src/ovadd.c fixtures/src/ovmul.c
+    PROPERTIES COMPILE_OPTIONS "-fno-pic;-mlong-calls")
+target_link_libraries(my_fw PRIVATE scl::overlay)
+target_link_options(my_fw PRIVATE -T${CMAKE_SOURCE_DIR}/src/sections-overlay.ld ...)
+```
+
+A module that borrows the STM32 HAL (the `spifs-overlay` driver) needs that HAL
+compiled into `main` (like the dynamic examples) — the module's calls to it are
+bound at link time.
+
+### Step 3 — The overlay linker script (the one real piece of work)
+
+Reserve an SRAM window as its own `MEMORY` region, then an `OVERLAY` block places
+every module at the **same VMA** (the window) with its own flash **LMA**:
+
+```ld
+MEMORY { ... OVL (rwx) : ORIGIN = 0x2001C000, LENGTH = 16K }   /* the window */
+
+  OVERLAY : NOCROSSREFS {
+    .ovadd { KEEP(<ovadd.obj>(.text .text.* .rodata* .data*)) }
+    .ovmul { KEEP(<ovmul.obj>(.text .text.* .rodata* .data*)) }
+  } > OVL AT> FLASH
+  _ovadd_lma = LOADADDR(.ovadd);  _ovadd_size = SIZEOF(.ovadd);
+  _ovmul_lma = LOADADDR(.ovmul);  _ovmul_size = SIZEOF(.ovmul);
+  _ovl_vma   = ADDR(.ovadd);      /* the shared run address */
+```
+
+Two rules that cost real debugging time:
+
+- **Place the `OVERLAY` block *before* the general `.text`** in the script. An
+  input section lands in the *first* matching output section, so the overlay's
+  explicit per-object selectors must come first — otherwise the general
+  `*(.text .text.*)` claims the module code and the overlay ends up empty
+  (`SIZEOF(.ovN) == 0`). (`EXCLUDE_FILE` on `.text` is *not* a reliable substitute.)
+- **`NOCROSSREFS`** makes `ld` fail the link if one module ever references another —
+  they can never be co-resident, so such a reference would be a latent HardFault.
+
+For a multi-file module (the spifs driver) gather all four objects into one section
+by object path; the `combo-overlay`/`spifs-overlay` scripts are the working template.
+
+### Step 4 — Build the descriptor table (from the linker symbols)
+
+No blob to provide; `main` reads the linker-emitted LMA/size/VMA:
+
+```cpp
+extern std::uint8_t _ovadd_lma[], _ovadd_size[], _ovmul_lma[], _ovmul_size[], _ovl_vma[];
+scl_overlay_module mods[2] = {
+    { _ovl_vma, _ovadd_lma, (uint32_t)(uintptr_t)_ovadd_size, "ovadd" },
+    { _ovl_vma, _ovmul_lma, (uint32_t)(uintptr_t)_ovmul_size, "ovmul" },
+};
+scl_overlay_region ovl; scl_overlay_init(&ovl, mods, 2);
+```
+
+### Step 5 — Load + call (direct by name)
+
+```cpp
+scl_overlay_load(&ovl, 0);   // memcpy ovadd -> window + DSB/ISB
+float s = ov_add(2.5f, 3.5f);
+scl_overlay_load(&ovl, 1);   // memcpy ovmul -> window (overwrites ovadd)
+float p = ov_mul(2.5f, 3.5f);
+```
+
+The exports were bound to the window address at link time, so once the right module
+is resident the call is an ordinary direct call. **Imports are resolved at link
+time too** — there is no runtime resolver, `.dynsym`, or embedded symtab for
+overlay. Values kept in `main` survive a window swap because they live in `main`,
+not the module (this is exactly what `combo-overlay` shows).
+
+### Step 6 — Model-G gotchas
+
+- **OVERLAY before `.text`**, and `NOCROSSREFS` (Step 3).
+- Each module must **fit the window** — an `ASSERT(SIZEOF(.ovN) <= _ovl_window_size, …)`
+  in the script catches overflow at link time.
+- The window is carved off SRAM (below the stack); size it for the *largest* module.
+- Only one module is valid at a time — a call into a non-resident module's export
+  runs whatever bytes currently fill the window (garbage). Load, then call.
+
+**Cost:** the modules are part of your build (not independent artifacts); one shares
+the window at a time. **Per "load":** a `memcpy`. **Per-call:** none.
+
+---
+
 ## 4½. Reusing memory — the unload / reload cycle
 
 To run a **second** library after the first (`use lib1 → unload → load lib2 →
@@ -640,13 +760,14 @@ deregister the module and the fixed windows are simply overwritten by the next
 load (D's `patch_main` re-points main's GOT to the new exports; C's `set_r10`
 re-bases). **E/F** (`dlclose` / `dl::close`) run the module's destructors and, on
 `scl::dynamic-newlib`, replay the **patch journal** to restore main byte-exact —
-the closest to a desktop `dlclose`. Only B and the ET_DYN/`dlopen` loaders
-publish/unpublish into a shared symbol table.
+the closest to a desktop `dlclose`. **G** (overlay) has no unload at all: the next
+`scl_overlay_load()` simply `memcpy`s a different module over the window. Only B
+and the ET_DYN/`dlopen` loaders publish/unpublish into a shared symbol table.
 
 ### Worked cross-module cycle: compute in one library, persist with another
 
 A concrete pattern that ties it together (the `combo-*` examples do exactly this
-on all six models): load a **float** library, compute `sum`/`prod`, **keep those
+on all seven models): load a **float** library, compute `sum`/`prod`, **keep those
 values in `main`**, unload it, load a **SPI-flatfs** library, and write the kept
 values to a file on the on-board flash, then read them back.
 
@@ -669,14 +790,18 @@ values to a file on the on-board flash, then read them back.
 
 The `combo-*` examples carry this cross-module cycle on each loader model (the
 same sequence, only the load/unload calls differ per model as in §4½ above) —
-all six verified on WeAct F411CE hardware.
+all seven verified on WeAct F411CE hardware. **`combo-overlay` (G)** is the purest
+form of the pattern: the float and SPI modules literally **time-share one SRAM
+window**, so the "unload" *is* loading the next module (a `memcpy` overwrites the
+first), and `sum`/`prod` survive precisely because they were kept in `main`.
 
 ---
 
-## 5. Resolving a module's imports — the three styles
+## 5. Resolving a module's imports — the styles
 
-Whichever model, `main` must satisfy the library's `UND` symbols. There are three
-ways; pick by loader:
+Whichever *runtime-loading* model, `main` must satisfy the library's `UND` symbols.
+There are four ways; pick by loader (and a fifth non-way — overlay resolves at link
+time, so it has no runtime resolver at all):
 
 | Style | How | Used by |
 |---|---|---|
@@ -684,6 +809,7 @@ ways; pick by loader:
 | `.dynsym` / `from_self` | `-pie -Wl,-E` + `-u` anchors, `link_context::from_self()` | Models A(`-pie`), C, D |
 | `symbol_table` | `g_syms.add_global(name, addr)` | Model B (`scl::static`) |
 | **embedded symtab** | `scl_embed_symtab(target)` + `-u` anchors (host `gen-symtab` bakes main's symbols into flash) | Models **E, F** (dynamic) |
+| **link-time (none at runtime)** | the module is linked with `main`; the linker binds every import to a fixed address | Model **G** (overlay) |
 
 Full treatment, the `-pie` requirement, and the gotchas: **`resolving-module-imports.md`**.
 
@@ -696,17 +822,19 @@ Full treatment, the `-pie` requirement, and the gotchas: **`resolving-module-imp
 
 ## 6. Side-by-side recap
 
-| | **A — RAM/ET_REL** | **B — RAM/`.so`** | **C — XIP+r10** | **D — XIP no-r10** | **E — dlopen/newlib** | **F — dlopen/nolib** |
-|---|---|---|---|---|---|---|
-| Example | `*-reloc` | `spi-/combo-static-full-ram` | `*-static` | `*-optimal` | `*-dynamic` | `*-dynamic-xip` |
-| Target | `scl::reloc` | `scl::static` | `scl::xip-static` | `optimal` | `scl::dynamic-newlib` | `scl::xip-dynamic-newlib` |
-| Fixture build | `-mlong-calls -fno-pic -r` | `-fPIC -shared` | `-fPIC -msingle-pic-base` split | `-fno-pic`, auto-windows | `-fPIC -shared` | `-fpic -msingle-pic-base` split |
-| Fixture addresses | none | none | none | derived by build | none | none |
-| Firmware link | plain (or `-pie`) | non-PIC + GOT scripts | `-pie` | `-pie` | hosted `-pie`, `SCL_HOSTED=ON` | hosted `-pie`, `SCL_HOSTED=ON` |
-| Import resolution | table / `from_self` | `symbol_table` | `.dynsym` + `bind_host_imports` | `.dynsym` (`load_and_link`) | embedded symtab | embedded symtab |
-| Call in source | `sym`→ptr / bare | **bare** | **bare** (`set_r10`) / `call_typed` | **bare** | `dlsym`→ptr | `dlsym`→ptr + r10 |
-| Per-call cost | none | none | r10 swap (none if bare) | none | none | r10 swap |
-| Runs from | RAM | RAM | flash | flash-window | RAM | flash |
+| | **A — RAM/ET_REL** | **B — RAM/`.so`** | **C — XIP+r10** | **D — XIP no-r10** | **E — dlopen/RAM** | **F — dlopen/XIP** | **G — overlay** |
+|---|---|---|---|---|---|---|---|
+| Example | `*-reloc` | `spi-/combo-static-full-ram` | `*-static` | `*-optimal` | `*-dynamic` | `*-dynamic-xip` | `*-overlay` |
+| Target | `scl::reloc` | `scl::static` | `scl::xip-static` | `optimal` | `scl::dynamic-newlib` | `scl::xip-dynamic-newlib` | `scl::overlay` |
+| Module build | `-mlong-calls -fno-pic -r` | `-fPIC -shared` | `-fPIC -msingle-pic-base` split | `-fno-pic`, auto-windows | `-fPIC -shared` | `-fpic -msingle-pic-base` split | `-fno-pic -mlong-calls`, link-placed |
+| Module addresses | none | none | none | derived by build | none | none | link-time (the window) |
+| Separate artifact? | yes (`.rel.o`) | yes (`.so`) | yes (`.so`) | yes (`.so`) | yes (`.so`) | yes (`.so`) | **no** — built into the firmware |
+| Firmware link | plain (or `-pie`) | non-PIC + GOT scripts | `-pie` | `-pie` | hosted `-pie`, `SCL_HOSTED=ON` | hosted `-pie`, `SCL_HOSTED=ON` | non-PIC + overlay ldscript |
+| Import resolution | table / `from_self` | `symbol_table` | `.dynsym` + `bind_host_imports` | `.dynsym` (`load_and_link`) | embedded symtab | embedded symtab | **link time (none at runtime)** |
+| Call in source | `sym`→ptr / bare | **bare** | **bare** (`set_r10`) / `call_typed` | **bare** | `dlsym`→ptr | `dlsym`→ptr + r10 | **bare** (link-bound) |
+| "Load" cost | copy+relocate | copy+patch | copy RW seg | copy RW seg | copy+patch | copy RW seg | **`memcpy`** |
+| Per-call cost | none | none | r10 swap (none if bare) | none | none | r10 swap | none |
+| Runs from | RAM | RAM | flash | flash-window | RAM | flash | RAM window |
 
 ---
 
@@ -773,13 +901,17 @@ above and **verified on WeAct F411CE**. When a flag is unclear, copy the example
 | **D** XIP no-r10 | `scl::optimal` | `float-optimal`, `spifs-optimal`, `combo-optimal` |
 | **E** dynamic dlopen (RAM) | `scl::dynamic-newlib` | `float-dynamic`, `spifs-dynamic`, `combo-dynamic` |
 | **F** dynamic dlopen (XIP) | `scl::xip-dynamic-newlib` | `float-dynamic-xip`, `spifs-dynamic-xip`, `combo-dynamic-xip` |
+| **G** overlay | `scl::overlay` | `float-overlay`, `spifs-overlay`, `combo-overlay` |
 
 The `float-*` apps are the minimal shape (load, call two exports, done). The
 `spifs-*` apps load the **W25Q64 SPI driver + flat-fs** module and drive the
 on-board flash by name (init/format/create/list/read/delete). The `combo-*` apps
 show the full cycle: load a float module, keep `sum`/`prod` in `main`, unload it,
 load the SPI module, write those values to a file and read them back — proving
-values survive the module swap because they live in `main`, not the module.
+values survive the module swap because they live in `main`, not the module. The
+`*-overlay` apps show the same shapes with the overlay technique: the modules are
+built into the firmware and time-share one SRAM window (`combo-overlay` swaps a
+float module and the SPI driver through the same window).
 
 **To start a new app:** copy the example that matches your model, replace
 `fixtures/` and `src/main.cpp` with yours, keep the `SCL-shared` submodule and the
@@ -805,6 +937,7 @@ for a library that throws).
 | **D** `optimal` | flash-window | free | `-fno-pic` fixed-addr `.so` | you must run from flash **and cannot touch `r10`** (windows are auto-derived, calls are bare) |
 | **E** `scl::dynamic-newlib` | RAM (buffer) | free | `-fPIC` `.so` (ET_DYN) | you want the **POSIX `dlopen`/`dlsym`/`dlclose`** contract on a hosted (newlib) firmware; journaled byte-exact `dlclose` |
 | **F** `scl::dynamic-nolib` | RAM or **flash (XIP)** | XIP: used | `-fPIC` `.so` / r10-split | you want `dlopen` **without libc** (tiny `dl::` facade, no heap); XIP form runs text from flash via `scl::xip-dynamic-nolib` |
+| **G** `scl::overlay` | RAM window | free | link-placed module (no `.so`) | the modules are **yours and built with the firmware**, and you want to time-share SRAM for the cost of a `memcpy` — not runtime/3rd-party loading |
 
 ### 9.2 Fixture build options (the loadable library)
 
@@ -816,6 +949,7 @@ for a library that throws).
 | **D** | `$MCU -fno-pic -mlong-calls -O0 -nostdlib -nodefaultlibs $CXX20` | `-shared -nostartfiles -Wl,-E -Wl,--unresolved-symbols=ignore-all -T nopic-split.ld` at the **auto-derived** window (`build.sh` emits `windows.generated.ld`) |
 | **E** | `$MCU -fPIC -O0 $CXX20` | `$MCU -fPIC -shared -nostartfiles -nostdlib -nodefaultlibs -Wl,-E *.o -o lib.so` (plain ET_DYN, RAM) |
 | **F** | RAM: as **E**; XIP: as **C** (`-fpic -msingle-pic-base -mpic-register=r10 … -T xip-split.ld`) | RAM: as **E**; XIP: as **C** (must show **R E + RW**) |
+| **G** | `$MCU -fno-pic -mlong-calls -O0 $CXX20` — **compiled into the firmware**, no separate link | none — the overlay linker script places each module's objects at the shared window VMA / own flash LMA |
 
 C, D and F(XIP) **must** keep `-nostdlib -nodefaultlibs` (or the C fixtures merge to one
 `RWE` segment / pull startup); B and D leave imports `UND`
@@ -831,6 +965,7 @@ C, D and F(XIP) **must** keep `-nostdlib -nodefaultlibs` (or the C fixtures merg
 | **D** | `optimal` (→ `scl::loader-nopic` → `scl::xip-common`) | `-fpic` (platform `-fno-pic -fhosted`) | `-pie -nostartfiles --specs=nano.specs LINKER:-Bsymbolic LINKER:-E LINKER:--unresolved-symbols=ignore-in-shared-libs -T app-windows.ld LINKER:-u,<imports> -L$FIX -l:lib.so` |
 | **E** | `scl::dynamic-newlib` (**`-DSCL_HOSTED=ON`**, hosted toolchain) | hosted, `-pie` | `-pie -Wl,-E LINKER:-u,<imports>` + `scl_embed_symtab(target)`; heap/newlib via `--specs=nano.specs` |
 | **F** | `scl::dynamic-nolib` (RAM) / `scl::xip-dynamic-nolib` (XIP), freestanding toolchain | `-fpic`, `-pie` | as **E** minus `SCL_HOSTED`; XIP form adds the flat-fs + pre-bind like **C** |
+| **G** | `scl::overlay` (+ the module sources, compiled `-fno-pic -mlong-calls`) | `-fno-pic -fno-pie` (a HAL-using module needs the HAL compiled into main) | `-nostdlib -nostartfiles -Wl,--gc-sections -T sections-overlay.ld` (OVERLAY block *before* `.text`, `NOCROSSREFS`) |
 
 ### 9.4 Import resolution, calls, and unload — one line each
 
@@ -842,6 +977,7 @@ C, D and F(XIP) **must** keep `-nostdlib -nodefaultlibs` (or the C fixtures merg
 | **D** | `.dynsym` + `-u` anchors (`load_and_link` resolves) | **bare** direct, no r10 | swap ⇒ link both `.so` at the same window | scoped dtor (`xip::nopic::unload`) |
 | **E** | embedded symtab (`scl_embed_symtab`) + `-u` anchors | `dlsym`→ptr | `dlopen` reads the file for you | `dlclose` — dtors + journaled byte-exact revert |
 | **F** | embedded symtab + `-u` anchors | `dlsym`→ptr + `r10`=`get_got_base(h)` | provision into flat-fs; pre-bind PLT (`patch_main_imports`) like **C** | `dlclose` — dtors + revert |
+| **G** | **link time** — the module is linked with `main`, no runtime resolver | **bare** direct (link-bound to the window) | `scl_overlay_load(&r, i)` = `memcpy` LMA→window + DSB/ISB | none — the next `scl_overlay_load` `memcpy`s a different module over the window |
 
 > If in doubt, copy the matching example folder in this repo: `float-*` (minimal),
 > `spifs-*` / `spi-static-full-ram` (real W25Q64 driver), `combo-*` (load/unload/

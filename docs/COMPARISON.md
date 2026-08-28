@@ -14,6 +14,12 @@ and used. Everything is **hard-float only** (`-mfloat-abi=hard -mfpu=fpv4-sp-d16
 | `static-shared` | static patching (`scl::static` / `scl::xip-static`) | shared libraries (`.so`, `ET_DYN`) | plain call, **by name** |
 | `optimal-shared` | XIP, no-`r10` fixed windows (`scl::optimal`) | shared libraries (`.so`, `ET_DYN`) | plain call, **by name** |
 | `relocatable-shared` | module loading (`scl::reloc`) | relocatable objects (`.rel.o`, `ET_REL`) | plain function pointer |
+| `overlay-shared` | linker overlays (`scl::overlay`) | own modules built into the firmware (no `.so`) | plain call, **by name** (link-bound) |
+
+The first four *load a module at runtime*; **`overlay-shared` is different in
+kind** — its modules are built with the firmware and bound at link time to a shared
+SRAM window, and "loading" is a `memcpy`. It benchmarks the overlay technique
+head-to-head against `dlopen` (same results, a fraction of the machinery).
 
 ---
 

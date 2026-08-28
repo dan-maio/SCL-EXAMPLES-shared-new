@@ -194,6 +194,7 @@ flash and trivial to parse" — the *good* version of forcing `.symtab` loadable
 | **reloc** (RAM / ET_REL) | **no** (plain by default) | a table *or* opt into `-pie` to get `from_self` |
 | **static-full-ram** (`scl::static`) | no (non-PIC, hosted) | `symbol_table::add_global(name, addr)` — the loader's native API, no `.dynsym` |
 | **dynamic-newlib / -nolib** (`dlopen`) | yes | **embedded symtab** — `scl_embed_symtab(target)` bakes main's symbols into flash; `-u` anchors keep them |
+| **overlay** (`scl::overlay`) | no | **none at runtime** — the module is linked *with* `main`, so the linker binds every import to a fixed address at link time. No resolver, `.dynsym`, or embedded symtab; not even `-u` anchors (the module *references* main directly, keeping the symbols alive). |
 
 The **dynamic** family adds a fourth style: instead of walking a runtime `.dynsym`,
 the host tool `gen-symtab` reads *main's own ELF* at build time and emits a symbol

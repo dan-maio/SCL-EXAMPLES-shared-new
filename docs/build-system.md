@@ -81,6 +81,7 @@ scl::optimal         Model D — XIP no-r10 fixed windows
 scl::dynamic-nolib   Model F(nolib) — freestanding dlopen
 scl::dynamic-newlib  Model E — hosted POSIX dlopen (needs SCL_HOSTED)
 scl::xip-dynamic-nolib / scl::xip-dynamic-newlib   the XIP adapters for the dlopen loaders
+scl::overlay         Model G — linker-overlay window manager (portable C; own modules)
 ```
 
 Key options it honours:
@@ -184,6 +185,7 @@ What changes per model:
 | D optimal | `scl::optimal` | `src/app-windows.ld` | `-pie`; windows auto-derived by the fixture build |
 | E dynamic | `scl::dynamic-newlib` | (platform's `sections-dyn.ld`) | `scl_embed_symtab` + `-u` anchors; hosted |
 | F dynamic-xip | `scl::xip-dynamic-newlib` | `src/sections-flatfs-hosted.ld` | `-pie`, `scl_embed_symtab`, gen-symtab POST_BUILD, `-u` anchors |
+| G overlay | `scl::overlay` | `src/sections-overlay.ld` (OVERLAY block *before* `.text`, `NOCROSSREFS`) | non-PIC; module sources compiled `-fno-pic -mlong-calls`; no separate fixture `.so` |
 
 The **`-u` (keep-alive) anchors** matter: a symbol the module imports but that
 `main` never calls itself would be dropped by `--gc-sections` and never reach
@@ -215,6 +217,11 @@ MCU := -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 #   readelf -l mylib.so   # MUST show two LOAD segments: "R E" and "RW"
 
 # D (optimal): -fno-pic at an AUTO-DERIVED window; build.sh emits windows.generated.ld
+
+# G (overlay): NO fixtures/Makefile and NO .so — the module sources live in
+#   fixtures/src/ and are compiled INTO the firmware (-fno-pic -mlong-calls); the
+#   overlay linker script places them in the shared SRAM window. "Loading" is a
+#   runtime memcpy, not a build artifact.
 
 # every dynamic/SPI fixture also:  strip --strip-debug mylib.so   (else -g3 -> ~870KB, too big for the RAM dlopen)
 ```
