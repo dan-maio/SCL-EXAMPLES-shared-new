@@ -12,3 +12,4 @@
 **/fixtures/manifest.txt
 # run.sh-restored HAL vendor snapshots (not needed; platform tree is vendored)
 */vendor/
+/README.pdf
