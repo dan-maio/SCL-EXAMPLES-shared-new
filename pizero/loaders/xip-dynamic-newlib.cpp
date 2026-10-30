@@ -25,5 +25,6 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
     lib.got = xip::newlib::get_got_base(g_mods[slot]);
     return true;
 }
+void lib_unload(Lib& lib) { xip::newlib::dlclose(g_mods[lib.slot]); g_mods[lib.slot] = nullptr; }
 const char* lib_first_missing() { return xip::newlib::first_missing_import(); }
 void* lib_sym(const Lib& lib, const char* name) { return reinterpret_cast<void*>(xip::newlib::dlsym(g_mods[lib.slot], name)); }

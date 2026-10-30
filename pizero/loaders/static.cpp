@@ -4,6 +4,7 @@
 #include "elf-reader.h"
 #include "module.h"
 #include <cstdio>
+#include <new>
 
 extern "C" { extern const std::uint32_t _reloc[10]; const std::uint32_t _reloc[10] = {}; }  // main has none
 
@@ -24,6 +25,10 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
         return false;
     lib.slot = slot;
     return true;
+}
+void lib_unload(Lib& lib) {   // the destructor restores main, byte for byte
+    g_mods[lib.slot].~Module();
+    new (&g_mods[lib.slot]) scl::Module;
 }
 const char* lib_first_missing() {
     for (auto& m : g_mods)

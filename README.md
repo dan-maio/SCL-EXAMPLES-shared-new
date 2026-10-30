@@ -11,6 +11,8 @@ repo starts from the history of `SCL-EXAMPLES-shared` and adds:
 `spifs-reloc` and `combo-reloc` now link `scl::self-resolve` instead of carrying
 their own copy of `link-context.cpp`, which no longer links against the fork.
 
+`docs/EXAMPLES-PROGRESSION.md` walks all the examples in order, from simple to complex.
+
 ## New-API examples
 
 | Dir | Loader | New APIs |
@@ -48,8 +50,7 @@ the tree only builds as-is on this machine.
 All 25 examples passed on the WeAct F411CE with the W25Q64 fitted (2026-10-30), in
 one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `9f1320f`.
 
-The 76 Pi-Zero firmwares in `pizero/` passed (2026-10-30), against `9f1320f`: 68 in one full
-run, and 8 after correcting a wrong expected value in one app.
+The status of the 76 Pi-Zero firmwares is in [`pizero/README.md`](pizero/README.md).
 The NUCLEO board and RTOS or multi-core use have not been tested; the lock and
 cache hooks were checked by counting calls on a single core with no data cache.
 

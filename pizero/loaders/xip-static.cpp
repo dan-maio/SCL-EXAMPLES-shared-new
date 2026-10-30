@@ -23,6 +23,7 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
     lib.got = g_mods[slot].got_base;
     return true;
 }
+void lib_unload(Lib& lib) { xip::stat::unload(g_mods[lib.slot]); }
 const char* lib_first_missing() { return xip::stat::first_missing_import(); }
 void* lib_sym(const Lib& lib, const char* name) {
     return reinterpret_cast<void*>(xip::stat::resolve(g_mods[lib.slot], name));

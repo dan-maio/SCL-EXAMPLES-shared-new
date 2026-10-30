@@ -8,7 +8,7 @@ Cortex-M33) under the µOS++ III SMP kernel: 76 firmwares. For stress tests and 
 |---|---|---|---|
 | `float` | `floatlib` | Hard-float calls, a constructor at load, library data shared by both cores | 9 |
 | `spifs` | flat filesystem + driver | Format, create, list, read and delete by name; both cores list and read | 9 |
-| `combo` | `floatlib`, `spifs` | Compute, save the result in a file, read it back on both cores | 9 |
+| `combo` | `floatlib`, `spifs` | Compute, unload, load the filesystem in the same memory, save the result, read it back on both cores | 9 |
 | `flashsmp` | `spifs` | Format and write files with both cores running | 9 |
 | `cpp` | `cpp3`, `c2`, `c1`, `mylib1` | C++ classes, recursion, heap, float, libraries calling each other in a cycle | 7 (not `static`, `overlay`) |
 | `provcons` | `libprov`, `libcons`, `mylib2` | One library importing from another; imports from main | 8 (not `overlay`) |
@@ -57,23 +57,17 @@ reports a good ID as `0xEF`. The firmware prints the real ID.
 
 ## Writing flash with both cores running
 
-Writing stops execute-in-place, so the other core must run nothing from flash. In `flashsmp`, the
+`flashsmp` uses `scl::rp2350-flash` from the loader; `include/scl/rp2350-flash.h` has its rules. The
 writer forces a TIMER1 interrupt on the other core, which waits in SRAM, using a vector table in
-SRAM, until the write ends. Interrupts are off on the writer throughout.
+SRAM, until the write ends. A sector erase stops both cores' interrupts for tens of milliseconds, so
+this does not suit hard real-time work.
 
-- A sector erase stops both cores' interrupts for tens of milliseconds, so this does not suit hard
-  real-time work.
-- A core is parked only with its interrupts on, so it holds no spinlock. A writer must not hold one
-  either, or take one while the other core is parked.
 - The filesystem has no lock of its own: `flashsmp` serialises calls into it.
-- Core 1 must enable coprocessor 7 first, because the bootrom's flash code uses it.
 
-The other apps write only before core 1 starts, and do not park anything.
+The other apps use it too, but write only before core 1 starts, so nothing is parked.
 
 Differences from the WeAct examples:
 
-- `combo` keeps both libraries loaded, except with `overlay`, where the second load overwrites the
-  first, as on the WeAct.
 - `ovfloat.cpp` has no `calls` counter, so `float-overlay` does not check it.
 - The overlay builds drop the shim's empty `w25q64()` constructor from the startup table, because the
   window is empty when constructors run.
@@ -91,8 +85,11 @@ terminal, where the firmware prints the same results.
 A run passes when the firmware prints `RESULT: PASS`, which requires every value checked on both
 cores to be right.
 
-All 76 passed on the board (2026-10-30) against SCL-shared-new `9f1320f`: 68 in one full run, and the
-8 `cppeh` firmwares after correcting a wrong expected value in `apps/cppeh.cpp`.
+`pizero/` pins SCL-shared-new `9ec0265`, which adds `scl::rp2350-flash` to `9f1320f`; the loaders are unchanged.
+
+All 76 passed on the board (2026-10-30) before flash writing moved into `scl::rp2350-flash` and `combo`
+gained its unload: 68 in one full run, and the 8 `cppeh` firmwares after correcting a wrong expected
+value. Since those changes, the 9 `combo` firmwares have passed; the full re-run is not finished.
 
 ## Requirements
 

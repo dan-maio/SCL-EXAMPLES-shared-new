@@ -62,7 +62,7 @@ function(fixture name slot)
     set(FIX_FILES ${FIX_FILES} "${FIX}/${name}.rel.o" "${FIX}/${name}.so" "${FIX}/${name}.pic.so" "${FIX}/${name}.opt.so" PARENT_SCOPE)
 endfunction()
 fixture(floatlib 0 ${FLOAT_SRCS})
-fixture(spifs 1 ${SPIFS_SRCS})
+fixture(spifs 0 ${SPIFS_SRCS})   # scl::optimal: the same window as floatlib, as on the WeAct
 
 # The WeAct tests' fixtures, copied into fixtures/tests/. Each kind builds as the tests build it.
 set(T "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/tests")
@@ -214,7 +214,7 @@ function(pizero_example app loader target)
         INCLUDES "${UOS_PORT_DIR}/test/boards/shared" "${CMAKE_CURRENT_SOURCE_DIR}/common"
                  "${CMAKE_CURRENT_SOURCE_DIR}/apps" "${WEACT}/include" "${T}/include" "${T}/libcppeh/include"
                  "${CMAKE_CURRENT_SOURCE_DIR}/SCL-shared/common-elf-reader/include"
-        LIBRARIES micro-os-plus::cortexm ${target})
+        LIBRARIES micro-os-plus::cortexm ${target} scl::rp2350-flash)
     add_dependencies("${name}-hwd" fixtures)
     if(app STREQUAL "cppeh")   # nano.specs' __cxa_throw has no unwind tables; the full libsupc++ does
         target_link_libraries("${name}-hwd" PRIVATE "${LIBSUPCXX}")

@@ -4,6 +4,7 @@
 #include "optimal/loader.hpp"
 #include "scl/symtab-runtime.hpp"
 #include <cstdio>
+#include <new>
 
 static optimal::Module g_mods[4];
 
@@ -21,6 +22,10 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
     if (!g_mods[slot].load(image)) return false;
     lib.slot = slot;
     return true;
+}
+void lib_unload(Lib& lib) {   // the destructor deregisters it and restores main
+    g_mods[lib.slot].~Module();
+    new (&g_mods[lib.slot]) optimal::Module;
 }
 const char* lib_first_missing() {
     xip::nopic::resolve_all();   // the libraries that import from each other

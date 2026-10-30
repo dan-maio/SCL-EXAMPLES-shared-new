@@ -11,6 +11,7 @@
 
 #include "scl/os-hooks.h"
 #include "scl/cache.h"
+#include "scl/rp2350-flash.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -78,218 +79,40 @@ std::span<const std::byte> read_host_file(const char* name) {
     return out;
 }
 
-// ---- writing a provisioned image to flash, through the bootrom ---------------------------
+// ---- flash: scl::rp2350-flash does the work ------------------------------------------------
 namespace {
-constexpr u32 kXipBase = 0x10000000u, kFlashOffset = 8u * 1024u * 1024u, kSector = 4096u;
-using rom_void = void (*)(void);
-using rom_erase = void (*)(u32, std::size_t, u32, std::uint8_t);
-using rom_prog = void (*)(u32, const std::uint8_t*, std::size_t);
-struct Rom { rom_void connect, exit_xip, flush, enter_xip; rom_erase erase; rom_prog prog; } g_rom;
-
-void* rom_lookup(char a, char b) {
-    using lookup_t = void* (*)(u32, u32);
-    const auto fn = reinterpret_cast<lookup_t>(
-        static_cast<std::uintptr_t>(*reinterpret_cast<const std::uint16_t*>(0x16u)));
-    return fn(static_cast<u32>(a) | (static_cast<u32>(b) << 8), 0x0004u);
-}
-
-/* Run from SRAM: flash is not readable between exit_xip and enter_xip. */
-__attribute__((section(".data.flash_write"), noinline, long_call)) void
-ram_erase(u32 offset, std::size_t n) {
-    g_rom.connect();
-    g_rom.exit_xip();
-    g_rom.erase(offset, n, kSector, 0x20u);
-    g_rom.flush();
-    g_rom.enter_xip();
-}
-__attribute__((section(".data.flash_write"), noinline, long_call)) void
-ram_program(u32 offset, const std::uint8_t* data, std::size_t n) {
-    g_rom.connect();
-    g_rom.exit_xip();
-    g_rom.prog(offset, data, n);
-    g_rom.flush();
-    g_rom.enter_xip();
-}
-/* The JEDEC ID command, through the QMI's direct mode. */
-__attribute__((section(".data.flash_write"), noinline, long_call)) void
-ram_read_id(std::uint8_t* out) {
-    volatile u32* const csr = reinterpret_cast<volatile u32*>(0x400D0000u);
-    volatile u32* const tx = csr + 1;
-    volatile u32* const rx = csr + 2;
-    g_rom.connect();
-    g_rom.exit_xip();
-    *csr = (30u << 22) | 1u;              // CLKDIV, EN
-    while (*csr & 2u) {
-    }
-    *csr |= 4u;                           // assert CS0
-    for (unsigned i = 0; i < 4; ++i) {
-        *tx = i == 0 ? 0x9Fu : 0u;
-        for (unsigned t = 0; t < 100000u && (*csr & (1u << 16)); ++t) {
-        }
-        out[i] = static_cast<std::uint8_t>(*rx);
-    }
-    *csr &= ~4u;
-    *csr &= ~1u;
-    g_rom.flush();
-    g_rom.enter_xip();
-}
-u32 irq_off() { u32 pm; __asm__ volatile("mrs %0, primask\n cpsid i" : "=r"(pm) : : "memory"); return pm; }
-void irq_restore(u32 pm) { __asm__ volatile("msr primask, %0" : : "r"(pm) : "memory"); }
-
-// ---- writing flash with both cores running ------------------------------------------------
-/* XIP stops during a write, so the other core must run nothing from flash. A TIMER1 interrupt,
- * forced from here, parks it in SRAM. Its vector table is in SRAM too. It can only be parked with
- * interrupts on, so it holds no spinlock, and the writer takes none while it is parked. */
-constexpr u32 kTimer1Intf = 0x400B8000u + 0x44u, kVtor = 0xE000ED08u;
-constexpr unsigned kTimer1Irq = 4, kVectors = 16u + 52u;
-alignas(512) u32 g_ram_vectors[kVectors];
-volatile bool g_park_ready[2], g_parked[2], g_park_go;
-volatile unsigned g_parks[2];
-
-__attribute__((section(".data.flash_write"), noinline)) void park_here(unsigned me) {
-    *reinterpret_cast<volatile u32*>(kTimer1Intf) = 0;
-    g_parks[me] = g_parks[me] + 1u;
-    g_parked[me] = true;
-    __asm__ volatile("dsb" : : : "memory");
-    while (g_park_go) {
-    }
-    g_parked[me] = false;
-}
-__attribute__((section(".data.flash_write"), noinline)) void park_irq0() { park_here(0); }
-__attribute__((section(".data.flash_write"), noinline)) void park_irq1() { park_here(1); }
-
-/* Returns with interrupts off and the other core not running from flash. */
-u32 flash_exclusive_begin() {
-    const u32 pm = irq_off();
-    const unsigned other = 1u - (port_cpu_id() & 1u);
-    if (g_park_ready[other]) {
-        g_park_go = true;
-        __asm__ volatile("dsb" : : : "memory");
-        *reinterpret_cast<volatile u32*>(kTimer1Intf) = 1u << other;
-        while (!g_parked[other]) {
-        }
-    }
-    return pm;
-}
-void flash_exclusive_end(u32 pm) {
-    const unsigned other = 1u - (port_cpu_id() & 1u);
-    g_park_go = false;
-    __asm__ volatile("dsb" : : : "memory");
-    if (g_park_ready[other]) {
-        while (g_parked[other]) {
-        }
-    }
-    irq_restore(pm);
-}
-
-/* One writer at a time. Spins with interrupts on, so the core waiting can itself be parked. */
-constexpr u32 kFlashLock = 0xD0000100u + 28u * 4u;
-void flash_lock() {
-    while (*reinterpret_cast<volatile u32*>(kFlashLock) == 0) {
-    }
-    __asm__ volatile("dmb" : : : "memory");
-}
-void flash_unlock() {
-    __asm__ volatile("dmb" : : : "memory");
-    *reinterpret_cast<volatile u32*>(kFlashLock) = 1;
-}
-
-void flash_smp_init() {
-    constexpr u32 kResetBit = 24u;   // TIMER1 out of reset; only its forced interrupt is used
-    *reinterpret_cast<volatile u32*>(0x40020000u) &= ~(1u << kResetBit);
-    while (!(*reinterpret_cast<volatile u32*>(0x40020008u) & (1u << kResetBit))) {
-    }
-    *reinterpret_cast<volatile u32*>(0x400B8000u + 0x40u) = 3u;   // INTE
-    const auto* flash = reinterpret_cast<const u32*>(*reinterpret_cast<volatile u32*>(kVtor));
-    for (unsigned i = 0; i < kVectors; ++i) g_ram_vectors[i] = flash[i];
-    g_ram_vectors[16u + kTimer1Irq] = reinterpret_cast<u32>(&park_irq0);
-    g_ram_vectors[16u + kTimer1Irq + 1u] = reinterpret_cast<u32>(&park_irq1);
-}
-void flash_park_enable_here() {
-    const unsigned me = port_cpu_id() & 1u;
-    const u32 pm = irq_off();
-    *reinterpret_cast<volatile u32*>(kVtor) = reinterpret_cast<u32>(g_ram_vectors);   // VTOR is per core
-    *reinterpret_cast<volatile u32*>(0xE000ED88u) |= 3u << 14;   // CPACR: the bootrom's flash code uses CP7
-    __asm__ volatile("dsb\n isb" : : : "memory");
-    irq_restore(pm);
-    *reinterpret_cast<volatile u32*>(0xE000E100u) = 1u << (kTimer1Irq + me);
-    g_park_ready[me] = true;
-}
-
-void rom_init() {
-    if (g_rom.connect) return;
-    g_rom = Rom{reinterpret_cast<rom_void>(rom_lookup('I', 'F')),
-                reinterpret_cast<rom_void>(rom_lookup('E', 'X')),
-                reinterpret_cast<rom_void>(rom_lookup('F', 'C')),
-                reinterpret_cast<rom_void>(rom_lookup('C', 'X')),
-                reinterpret_cast<rom_erase>(rom_lookup('R', 'E')),
-                reinterpret_cast<rom_prog>(rom_lookup('R', 'P'))};
-}
+constexpr u32 kXipBase = 0x10000000u, kFlashOffset = 8u * 1024u * 1024u;
 constexpr u32 kFsBase = 9u * 1024u * 1024u;   // the w25q64 driver's flash, away from the images
 }  // namespace
 
-unsigned flash_parks(unsigned core) { return g_parks[core]; }
+unsigned flash_parks(unsigned core) { return scl_rp2350_flash_parks(core); }
 
 std::uint32_t flash_address(unsigned slot) { return kXipBase + kFlashOffset + slot * 64u * 1024u; }
 
 std::span<const std::byte> write_to_flash(std::span<std::byte> image, std::uint32_t flash_addr) {
-    rom_init();
-    const u32 off = flash_addr - kXipBase;
-    const u32 pm = irq_off();
-    ram_erase(off, (image.size() + kSector - 1u) & ~(kSector - 1u));
-    ram_program(off, reinterpret_cast<const std::uint8_t*>(image.data()), (image.size() + 255u) & ~255u);
-    irq_restore(pm);
-    const auto* in_flash = reinterpret_cast<const std::byte*>(flash_addr);
-    if (std::memcmp(in_flash, image.data(), image.size()) != 0) return {};
-    return {in_flash, image.size()};
+    const u32 off = flash_addr - kXipBase, sectors = (image.size() + SCL_RP2350_FLASH_SECTOR - 1u) & ~(SCL_RP2350_FLASH_SECTOR - 1u);
+    if (!scl_rp2350_flash_erase(off, sectors) || !scl_rp2350_flash_program(off, image.data(), image.size())) return {};
+    return {reinterpret_cast<const std::byte*>(flash_addr), image.size()};
 }
 
 // ---- the flash the w25q64 driver in the libraries uses -------------------------------------
 extern "C" {
 const std::uint8_t* board_flash_map(std::uint32_t addr) {
-    return reinterpret_cast<const std::uint8_t*>(kXipBase + kFsBase + addr);
+    return static_cast<const std::uint8_t*>(scl_rp2350_flash_map(kFsBase + addr));
 }
 int board_flash_read_id(std::uint8_t* mid, std::uint8_t* tid) {
-    rom_init();
-    std::uint8_t id[4] = {};
-    flash_lock();
-    const u32 pm = flash_exclusive_begin();
-    ram_read_id(id);
-    flash_exclusive_end(pm);
-    flash_unlock();
+    std::uint8_t id[3];
+    scl_rp2350_flash_read_id(id);
     char l[48];
-    std::snprintf(l, sizeof l, "  flash JEDEC id: %02x %02x %02x\n", id[1], id[2], id[3]);
+    std::snprintf(l, sizeof l, "  flash JEDEC id: %02x %02x %02x\n", id[0], id[1], id[2]);
     say(l);
-    *mid = id[1];
-    *tid = id[2];
-    return id[1] != 0x00u && id[1] != 0xFFu;
+    *mid = id[0];
+    *tid = id[1];
+    return id[0] != 0x00u && id[0] != 0xFFu;
 }
-void board_flash_erase_sector(std::uint32_t addr) {
-    rom_init();
-    flash_lock();
-    const u32 pm = flash_exclusive_begin();
-    ram_erase(kFsBase + addr, kSector);
-    flash_exclusive_end(pm);
-    flash_unlock();
-}
+void board_flash_erase_sector(std::uint32_t addr) { scl_rp2350_flash_erase(kFsBase + addr, SCL_RP2350_FLASH_SECTOR); }
 int board_flash_program(std::uint32_t addr, const std::uint8_t* data, std::uint32_t len) {
-    rom_init();
-    alignas(4) static std::uint8_t page[256];
-    flash_lock();
-    int ok = 1;
-    for (std::uint32_t done = 0; done < len;) {
-        const std::uint32_t at = addr + done, start = at & ~255u, in = at - start;
-        const std::uint32_t n = std::min<std::uint32_t>(256u - in, len - done);
-        std::memcpy(page, board_flash_map(start), 256);   // bits already programmed stay
-        std::memcpy(page + in, data + done, n);
-        const u32 pm = flash_exclusive_begin();
-        ram_program(kFsBase + start, page, 256);
-        flash_exclusive_end(pm);
-        if (std::memcmp(board_flash_map(at), data + done, n) != 0) { ok = 0; break; }
-        done += n;
-    }
-    flash_unlock();
-    return ok;
+    return scl_rp2350_flash_program(kFsBase + addr, data, len) ? 1 : 0;
 }
 }
 
@@ -356,7 +179,7 @@ void* worker(void* arg) {
     __asm__ volatile("dmb" : : : "memory");
     g_walked = core + 1u;
     while (g_walked < 2u) sysclock.sleep_for(5);
-    if (app_writes_flash_under_smp()) flash_park_enable_here();
+    if (app_writes_flash_under_smp()) scl_rp2350_flash_park_enable();
     g_ready_core[core] = true;
     __asm__ volatile("dmb" : : : "memory");
     while (!g_ready_core[0] || !g_ready_core[1]) sysclock.sleep_for(5);
@@ -434,7 +257,7 @@ int os_main(int, char*[]) {
         say("LOAD FAILED\nRESULT: FAIL\n");
         hw_result::fail();
     }
-    if (app_writes_flash_under_smp()) flash_smp_init();
+    if (app_writes_flash_under_smp()) scl_rp2350_flash_smp_init();
     say("  starting SMP\n");
     {
         thread::attributes attr = thread::initializer;

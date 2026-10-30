@@ -24,6 +24,8 @@ bool lib_load(Lib& lib, unsigned, const char* base) {
     return scl_overlay_load(&region, static_cast<int>(lib.slot)) == 0;
 }
 
+void lib_unload(Lib&) {}   // the next load overwrites the window
+
 const char* lib_first_missing() { return nullptr; }   // the linker checked
 
 void* lib_sym(const Lib&, const char* name) {

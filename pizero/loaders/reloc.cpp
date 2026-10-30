@@ -47,6 +47,7 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
     lib.slot = slot;
     return true;
 }
+void lib_unload(Lib&) {}   // main keeps no state for it: the next load reuses the arena
 const char* lib_first_missing() { return nullptr; }   // a missing import fails the load
 void* lib_sym(const Lib& lib, const char* name) {
     if (lib.slot < g_set_count) return reinterpret_cast<void*>(reloc::sym(g_set, name));

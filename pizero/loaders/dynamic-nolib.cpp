@@ -25,6 +25,7 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
     lib.got = (*m)->got_base;
     return true;
 }
+void lib_unload(Lib& lib) { fw::dlclose(*g_mods[lib.slot]); g_mods[lib.slot] = nullptr; }
 const char* lib_first_missing() { return fw::dl_first_missing_import(); }
 void* lib_sym(const Lib& lib, const char* name) {
     auto v = fw::dlsym(*g_mods[lib.slot], name);

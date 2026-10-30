@@ -20,6 +20,7 @@ const char* const kAppName = "ovfix-overlay";
 // This app swaps the window itself, so it has no loaders/*.cpp.
 bool lib_load(Lib&, unsigned, const char*) { return false; }
 void* lib_sym(const Lib&, const char*) { return nullptr; }
+void lib_unload(Lib&) {}
 const char* lib_first_missing() { return nullptr; }
 
 static std::uint32_t g_method_at_boot, g_f_at_boot;

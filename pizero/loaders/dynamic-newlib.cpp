@@ -29,6 +29,7 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
     lib.slot = slot;
     return true;
 }
+void lib_unload(Lib& lib) { linker().unload(g_mods[lib.slot]); g_mods[lib.slot] = nullptr; }
 const char* lib_first_missing() { return linker().first_missing_import(); }
 void* lib_sym(const Lib& lib, const char* name) {
     auto v = linker().lookup(g_mods[lib.slot], name);

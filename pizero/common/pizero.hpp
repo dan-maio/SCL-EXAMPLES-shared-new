@@ -31,6 +31,7 @@ struct Lib {
 };
 bool lib_load(Lib& lib, unsigned slot, const char* base);   ///< base is the fixture's name.
 void* lib_sym(const Lib& lib, const char* name);
+void lib_unload(Lib& lib);                                  ///< Its memory can be loaded into again.
 const char* lib_first_missing();                            ///< After every library is loaded.
 
 /// Libraries that import from each other, into slots 0 to n-1. scl::reloc must link them together.
