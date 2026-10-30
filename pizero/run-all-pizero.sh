@@ -8,19 +8,25 @@
 # Uses the port's OpenOCD sequence (test/boards/pico2-pizero/hw.sh). The UART is not
 # opened, so it stays free for a terminal; the firmware prints the same results there.
 #
-# Tunables: GAP (seconds, default 3), SECS (per example, default 120), UOS_PORT_DIR, BUILD.
+# Tunables: GAP (seconds, default 3), SECS (per example, default 180), UOS_PORT_DIR, BUILD.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UOS_PORT_DIR="${UOS_PORT_DIR:-/home/dan/Desktop/micro-os-plu-iii-smp-pr-github/micro-os-plus-iii-cortexm}"
 BUILD="${BUILD:-$HERE/build}"
-SECS="${SECS:-120}"
+SECS="${SECS:-180}"
 GAP="${GAP:-3}"
 FILTER="${1:-}"
 LOGDIR="$HERE/logs/pizero-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$LOGDIR"
-LOADERS=(reloc static optimal overlay dynamic-newlib dynamic-nolib xip-static xip-dynamic-nolib xip-dynamic-newlib)
+ALL=(reloc static optimal dynamic-newlib dynamic-nolib xip-static xip-dynamic-nolib xip-dynamic-newlib)
 EXAMPLES=()
-for app in float spifs combo; do for l in "${LOADERS[@]}"; do EXAMPLES+=("$app-$l"); done; done
+for app in float spifs combo flashsmp; do for l in "${ALL[@]}" overlay; do EXAMPLES+=("$app-$l"); done; done
+for app in cpp provcons slib drivers cppeh; do
+    for l in "${ALL[@]}"; do
+        [[ "$app-$l" == cpp-static ]] || EXAMPLES+=("$app-$l")   # scl::static has no cyclic imports
+    done
+done
+EXAMPLES+=(ovfix-overlay)
 pass=0; fail=0
 declare -a RESULTS=()
 export PATH="${ARM_TOOLCHAIN_BIN:-/home/dan/.local/xPacks/@xpack-dev-tools/arm-none-eabi-gcc/15.2.1-1.1.1/.content/bin}:$PATH"

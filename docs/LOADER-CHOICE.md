@@ -435,7 +435,7 @@ any hand-made file, is all it takes.
 
 ## Dual-core: the Pi-Zero RP2350B results
 
-`pizero/` in this repository has the `float`, `spifs` and `combo` examples for each loader on this board.
+`pizero/` in this repository has the WeAct examples and test fixtures on each loader on this board, and writing flash with both cores running.
 
 `pico2-pizero-shared/` in `SCL-TESTS-shared-new` runs these loaders on a Pi-Zero RP2350B
 (2x Cortex-M33, 16 MB flash, 8 MB PSRAM) under the µOS++ SMP kernel. Every load and patch

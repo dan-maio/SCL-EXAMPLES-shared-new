@@ -7,7 +7,7 @@
 
 extern "C" { extern const std::uint32_t _reloc[10]; const std::uint32_t _reloc[10] = {}; }  // main has none
 
-static scl::Module g_mods[2];
+static scl::Module g_mods[4];
 
 bool lib_load(Lib& lib, unsigned slot, const char* base) {
     char file[32];
@@ -22,8 +22,12 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
     scl::Module& m = g_mods[slot];
     if (!m.load_buf(reinterpret_cast<const uint8_t*>(image.data()), image.size(), example_arena(slot), kArenaBytes, &syms))
         return false;
-    if (m.first_missing_import()) return false;   // an unresolved import would fault when called
     lib.slot = slot;
     return true;
+}
+const char* lib_first_missing() {
+    for (auto& m : g_mods)
+        if (const char* n = m.first_missing_import()) return n;
+    return nullptr;
 }
 void* lib_sym(const Lib& lib, const char* name) { return g_mods[lib.slot].sym<void*>(name); }

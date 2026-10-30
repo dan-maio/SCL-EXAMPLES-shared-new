@@ -1,14 +1,21 @@
 # Pi-Zero examples
 
-The WeAct `float`, `spifs` and `combo` examples, for each of the 9 SCL loaders, on the Pi-Zero
-RP2350B (2x Cortex-M33) under the µOS++ III SMP kernel: 27 firmwares. For the full test suite, see
+The WeAct examples and test fixtures, on each of the 9 SCL loaders, on the Pi-Zero RP2350B (2x
+Cortex-M33) under the µOS++ III SMP kernel: 76 firmwares. For stress tests and PSRAM, see
 `pico2-pizero-shared/` in `SCL-TESTS-shared-new`.
 
-| App (`apps/`) | What it does |
-|---|---|
-| `float` | Loads `floatlib`, calls it from both cores, and checks its `calls` counter |
-| `spifs` | Loads the flat filesystem, then formats, creates, lists, reads and deletes files; both cores then list and read |
-| `combo` | Computes with `floatlib`, saves the results to a file with `spifs`; both cores read it back |
+| App (`apps/`) | Fixtures | What it shows | Loaders |
+|---|---|---|---|
+| `float` | `floatlib` | Hard-float calls, a constructor at load, library data shared by both cores | 9 |
+| `spifs` | flat filesystem + driver | Format, create, list, read and delete by name; both cores list and read | 9 |
+| `combo` | `floatlib`, `spifs` | Compute, save the result in a file, read it back on both cores | 9 |
+| `flashsmp` | `spifs` | Format and write files with both cores running | 9 |
+| `cpp` | `cpp3`, `c2`, `c1`, `mylib1` | C++ classes, recursion, heap, float, libraries calling each other in a cycle | 7 (not `static`, `overlay`) |
+| `provcons` | `libprov`, `libcons`, `mylib2` | One library importing from another; imports from main | 8 (not `overlay`) |
+| `slib` | `mylib1`, `slib` | Constructors, internal calls, an import from main | 8 (not `overlay`) |
+| `drivers` | `libled`, `libuart`, `libspi` | The LED, the UART, the SPI block in internal loopback | 8 (not `overlay`) |
+| `cppeh` | `libcppeh`, `ehx_catch`, `libcppsh` | Exceptions inside a library, across libraries and into main; RTTI; virtual classes | 8 (not `overlay`) |
+| `ovfix` | `ov1`, `ov2`, `ovcpp` | The WeAct overlay test's fixtures, swapped at boot | `overlay` only |
 
 | Loader (`loaders/`) | Library form | Code runs from |
 |---|---|---|
@@ -22,11 +29,15 @@ RP2350B (2x Cortex-M33) under the µOS++ III SMP kernel: 27 firmwares. For the f
 | `xip-dynamic-nolib` | `.so` | flash |
 | `xip-dynamic-newlib` | `.so` | flash |
 
-A firmware is one app plus one loader, for example `combo-xip-static`.
+A firmware is one app plus one loader, for example `combo-xip-static`. Each prints every fixture
+call and its traces, on one core and then the other, and checks the values.
 
 ## The fixtures
 
-The build compiles the WeAct examples' files directly: `floatlib.cpp`, `spi-shim.cpp`,
+`fixtures/tests/` is a copy of the WeAct tests' fixtures from `SCL-TESTS-shared-new`, with the RP2350
+driver fixtures from `pico2-pizero-shared/`.
+
+For `float`, `spifs` and `combo`, the build compiles the WeAct examples' files directly: `floatlib.cpp`, `spi-shim.cpp`,
 `fs-archive-spi.cpp` and `spifs-api.cpp` from `../combo-reloc/fixtures/`, and `ovfloat.cpp` from
 `../combo-overlay/fixtures/`.
 
@@ -40,9 +51,24 @@ reports a good ID as `0xEF`. The firmware prints the real ID.
 ## Boot order
 
 1. `app_load()`: on core 0, with core 1 in the bootrom and the kernel not started.
-2. `app_start()`: on core 0, with the kernel running and core 1 still in the bootrom. Flash writes
-   happen here, because writing stops execute-in-place and core 1 must not be running from flash.
-3. `app_on_core()`: on core 0, then on core 1, with SMP running. Reads only.
+2. `app_start()`: on core 0, with the kernel running and core 1 still in the bootrom.
+3. `app_on_core()`: on core 0, then on core 1, with SMP running.
+4. `app_together()`: on both cores at once. Only `flashsmp` uses it.
+
+## Writing flash with both cores running
+
+Writing stops execute-in-place, so the other core must run nothing from flash. In `flashsmp`, the
+writer forces a TIMER1 interrupt on the other core, which waits in SRAM, using a vector table in
+SRAM, until the write ends. Interrupts are off on the writer throughout.
+
+- A sector erase stops both cores' interrupts for tens of milliseconds, so this does not suit hard
+  real-time work.
+- A core is parked only with its interrupts on, so it holds no spinlock. A writer must not hold one
+  either, or take one while the other core is parked.
+- The filesystem has no lock of its own: `flashsmp` serialises calls into it.
+- Core 1 must enable coprocessor 7 first, because the bootrom's flash code uses it.
+
+The other apps write only before core 1 starts, and do not park anything.
 
 Differences from the WeAct examples:
 
@@ -55,7 +81,7 @@ Differences from the WeAct examples:
 ## Run
 
 ```sh
-./run-all-pizero.sh            # all 27, with a 3-second gap
+./run-all-pizero.sh            # all 76, with a 3-second gap
 ./run-all-pizero.sh spifs      # only those whose name matches
 ```
 
@@ -65,8 +91,8 @@ terminal, where the firmware prints the same results.
 A run passes when the firmware prints `RESULT: PASS`, which requires every value checked on both
 cores to be right.
 
-All 27 passed on the board (2026-10-30) against SCL-shared-new `9f1320f`, over several runs rather
-than one, because the run was stopped and restarted while fixing the overlay startup and the chip ID.
+All 76 passed on the board (2026-10-30) against SCL-shared-new `9f1320f`: 68 in one full run, and the
+8 `cppeh` firmwares after correcting a wrong expected value in `apps/cppeh.cpp`.
 
 ## Requirements
 
@@ -76,5 +102,5 @@ than one, because the run was stopped and restarted while fixing the overlay sta
 
 ## Not shown here
 
-PSRAM, exceptions, interrupts, missing-import reporting and the larger test fixtures are in the
-test suite.
+PSRAM, interrupts, missing-import reporting and calls from both cores at once under load are in the
+test suite. With exceptions, `cppeh` throws on one core at a time.

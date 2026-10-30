@@ -4,7 +4,7 @@
 #include "xip/static/adapter.hpp"
 #include <cstdio>
 
-static xip::stat::SModule g_mods[2];
+static xip::stat::SModule g_mods[4];
 
 bool lib_load(Lib& lib, unsigned slot, const char* base) {
     char file[32];
@@ -18,11 +18,12 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
     auto in_flash = write_to_flash(image, addr);
     if (in_flash.empty()) return false;
 
-    if (!xip::stat::load(in_flash, g_mods[slot]) || xip::stat::first_missing_import()) return false;
+    if (!xip::stat::load(in_flash, g_mods[slot])) return false;
     lib.slot = slot;
     lib.got = g_mods[slot].got_base;
     return true;
 }
+const char* lib_first_missing() { return xip::stat::first_missing_import(); }
 void* lib_sym(const Lib& lib, const char* name) {
     return reinterpret_cast<void*>(xip::stat::resolve(g_mods[lib.slot], name));
 }

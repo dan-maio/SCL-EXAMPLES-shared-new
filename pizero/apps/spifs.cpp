@@ -9,7 +9,7 @@ const char* const kAppName = "spifs-" LOADER_NAME;
 
 static Spifs g_fs;
 
-bool app_load() { return g_fs.load(0); }
+bool app_load() { return g_fs.load(0) && libs_ready(); }
 
 bool app_start() {
     if (g_fs.init() != 0) { say("  flash NOT found\n"); return false; }

@@ -16,7 +16,7 @@ bool app_load() {
     g_add = lib_sym(g_lib, "float_add");
     g_mul = lib_sym(g_lib, "float_mul");
     g_calls = static_cast<unsigned*>(lib_sym(g_lib, "calls"));   // the overlay's copy has none
-    return g_add && g_mul;
+    return g_add && g_mul && libs_ready();
 }
 
 bool app_start() { return true; }

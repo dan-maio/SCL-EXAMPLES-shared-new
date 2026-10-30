@@ -4,7 +4,7 @@
 #include "xip/dynamic-nolib/adapter.hpp"
 #include <cstdio>
 
-static void* g_mods[2];
+static void* g_mods[4];
 
 bool lib_load(Lib& lib, unsigned slot, const char* base) {
     char file[32];
@@ -19,9 +19,10 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
     if (in_flash.empty()) return false;
 
     g_mods[slot] = xip::nolib::dlopen(in_flash, base);
-    if (!g_mods[slot] || xip::nolib::first_missing_import()) return false;
+    if (!g_mods[slot]) return false;
     lib.slot = slot;
     lib.got = xip::nolib::get_got_base(g_mods[slot]);
     return true;
 }
+const char* lib_first_missing() { return xip::nolib::first_missing_import(); }
 void* lib_sym(const Lib& lib, const char* name) { return reinterpret_cast<void*>(xip::nolib::dlsym(g_mods[lib.slot], name)); }

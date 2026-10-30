@@ -3,6 +3,7 @@
 
 #include <cmsis-plus/rtos/os.h>
 
+#include <bsp/led.hpp>
 #include <bsp/multicore.hpp>
 #include <bsp/uart.hpp>
 
@@ -34,13 +35,6 @@ namespace os::rtos::scheduler {
 extern thread* os_idle_thread_core[OS_NCPU];
 }
 
-#define SYM(n) {#n, reinterpret_cast<u32>(&n)}
-const scl_sym_entry kMainSymbols[] = {
-    SYM(board_flash_read_id), SYM(board_flash_erase_sector), SYM(board_flash_program), SYM(board_flash_map),
-    SYM(memcpy), SYM(memset), SYM(memcmp), SYM(strlen),
-};
-const std::size_t kMainSymbolCount = sizeof kMainSymbols / sizeof kMainSymbols[0];
-
 namespace { bool g_uart_ready; }   // it comes up with the kernel's main
 
 void say(const char* s) {
@@ -59,7 +53,7 @@ unsigned semi(unsigned op, const void* arg) {
     __asm__ volatile("bkpt 0xAB" : "+r"(r0) : "r"(r1) : "memory");
     return r0;
 }
-alignas(8) std::byte g_files[4][24 * 1024];
+alignas(8) std::byte g_files[4][32 * 1024];
 unsigned g_file_count;
 }  // namespace
 
@@ -139,6 +133,89 @@ ram_read_id(std::uint8_t* out) {
     g_rom.flush();
     g_rom.enter_xip();
 }
+u32 irq_off() { u32 pm; __asm__ volatile("mrs %0, primask\n cpsid i" : "=r"(pm) : : "memory"); return pm; }
+void irq_restore(u32 pm) { __asm__ volatile("msr primask, %0" : : "r"(pm) : "memory"); }
+
+// ---- writing flash with both cores running ------------------------------------------------
+/* XIP stops during a write, so the other core must run nothing from flash. A TIMER1 interrupt,
+ * forced from here, parks it in SRAM. Its vector table is in SRAM too. It can only be parked with
+ * interrupts on, so it holds no spinlock, and the writer takes none while it is parked. */
+constexpr u32 kTimer1Intf = 0x400B8000u + 0x44u, kVtor = 0xE000ED08u;
+constexpr unsigned kTimer1Irq = 4, kVectors = 16u + 52u;
+alignas(512) u32 g_ram_vectors[kVectors];
+volatile bool g_park_ready[2], g_parked[2], g_park_go;
+volatile unsigned g_parks[2];
+
+__attribute__((section(".data.flash_write"), noinline)) void park_here(unsigned me) {
+    *reinterpret_cast<volatile u32*>(kTimer1Intf) = 0;
+    g_parks[me] = g_parks[me] + 1u;
+    g_parked[me] = true;
+    __asm__ volatile("dsb" : : : "memory");
+    while (g_park_go) {
+    }
+    g_parked[me] = false;
+}
+__attribute__((section(".data.flash_write"), noinline)) void park_irq0() { park_here(0); }
+__attribute__((section(".data.flash_write"), noinline)) void park_irq1() { park_here(1); }
+
+/* Returns with interrupts off and the other core not running from flash. */
+u32 flash_exclusive_begin() {
+    const u32 pm = irq_off();
+    const unsigned other = 1u - (port_cpu_id() & 1u);
+    if (g_park_ready[other]) {
+        g_park_go = true;
+        __asm__ volatile("dsb" : : : "memory");
+        *reinterpret_cast<volatile u32*>(kTimer1Intf) = 1u << other;
+        while (!g_parked[other]) {
+        }
+    }
+    return pm;
+}
+void flash_exclusive_end(u32 pm) {
+    const unsigned other = 1u - (port_cpu_id() & 1u);
+    g_park_go = false;
+    __asm__ volatile("dsb" : : : "memory");
+    if (g_park_ready[other]) {
+        while (g_parked[other]) {
+        }
+    }
+    irq_restore(pm);
+}
+
+/* One writer at a time. Spins with interrupts on, so the core waiting can itself be parked. */
+constexpr u32 kFlashLock = 0xD0000100u + 28u * 4u;
+void flash_lock() {
+    while (*reinterpret_cast<volatile u32*>(kFlashLock) == 0) {
+    }
+    __asm__ volatile("dmb" : : : "memory");
+}
+void flash_unlock() {
+    __asm__ volatile("dmb" : : : "memory");
+    *reinterpret_cast<volatile u32*>(kFlashLock) = 1;
+}
+
+void flash_smp_init() {
+    constexpr u32 kResetBit = 24u;   // TIMER1 out of reset; only its forced interrupt is used
+    *reinterpret_cast<volatile u32*>(0x40020000u) &= ~(1u << kResetBit);
+    while (!(*reinterpret_cast<volatile u32*>(0x40020008u) & (1u << kResetBit))) {
+    }
+    *reinterpret_cast<volatile u32*>(0x400B8000u + 0x40u) = 3u;   // INTE
+    const auto* flash = reinterpret_cast<const u32*>(*reinterpret_cast<volatile u32*>(kVtor));
+    for (unsigned i = 0; i < kVectors; ++i) g_ram_vectors[i] = flash[i];
+    g_ram_vectors[16u + kTimer1Irq] = reinterpret_cast<u32>(&park_irq0);
+    g_ram_vectors[16u + kTimer1Irq + 1u] = reinterpret_cast<u32>(&park_irq1);
+}
+void flash_park_enable_here() {
+    const unsigned me = port_cpu_id() & 1u;
+    const u32 pm = irq_off();
+    *reinterpret_cast<volatile u32*>(kVtor) = reinterpret_cast<u32>(g_ram_vectors);   // VTOR is per core
+    *reinterpret_cast<volatile u32*>(0xE000ED88u) |= 3u << 14;   // CPACR: the bootrom's flash code uses CP7
+    __asm__ volatile("dsb\n isb" : : : "memory");
+    irq_restore(pm);
+    *reinterpret_cast<volatile u32*>(0xE000E100u) = 1u << (kTimer1Irq + me);
+    g_park_ready[me] = true;
+}
+
 void rom_init() {
     if (g_rom.connect) return;
     g_rom = Rom{reinterpret_cast<rom_void>(rom_lookup('I', 'F')),
@@ -148,10 +225,10 @@ void rom_init() {
                 reinterpret_cast<rom_erase>(rom_lookup('R', 'E')),
                 reinterpret_cast<rom_prog>(rom_lookup('R', 'P'))};
 }
-u32 irq_off() { u32 pm; __asm__ volatile("mrs %0, primask\n cpsid i" : "=r"(pm) : : "memory"); return pm; }
-void irq_restore(u32 pm) { __asm__ volatile("msr primask, %0" : : "r"(pm) : "memory"); }
 constexpr u32 kFsBase = 9u * 1024u * 1024u;   // the w25q64 driver's flash, away from the images
 }  // namespace
+
+unsigned flash_parks(unsigned core) { return g_parks[core]; }
 
 std::uint32_t flash_address(unsigned slot) { return kXipBase + kFlashOffset + slot * 64u * 1024u; }
 
@@ -175,9 +252,11 @@ const std::uint8_t* board_flash_map(std::uint32_t addr) {
 int board_flash_read_id(std::uint8_t* mid, std::uint8_t* tid) {
     rom_init();
     std::uint8_t id[4] = {};
-    const u32 pm = irq_off();
+    flash_lock();
+    const u32 pm = flash_exclusive_begin();
     ram_read_id(id);
-    irq_restore(pm);
+    flash_exclusive_end(pm);
+    flash_unlock();
     char l[48];
     std::snprintf(l, sizeof l, "  flash JEDEC id: %02x %02x %02x\n", id[1], id[2], id[3]);
     say(l);
@@ -187,25 +266,30 @@ int board_flash_read_id(std::uint8_t* mid, std::uint8_t* tid) {
 }
 void board_flash_erase_sector(std::uint32_t addr) {
     rom_init();
-    const u32 pm = irq_off();
+    flash_lock();
+    const u32 pm = flash_exclusive_begin();
     ram_erase(kFsBase + addr, kSector);
-    irq_restore(pm);
+    flash_exclusive_end(pm);
+    flash_unlock();
 }
 int board_flash_program(std::uint32_t addr, const std::uint8_t* data, std::uint32_t len) {
     rom_init();
     alignas(4) static std::uint8_t page[256];
+    flash_lock();
+    int ok = 1;
     for (std::uint32_t done = 0; done < len;) {
         const std::uint32_t at = addr + done, start = at & ~255u, in = at - start;
         const std::uint32_t n = std::min<std::uint32_t>(256u - in, len - done);
         std::memcpy(page, board_flash_map(start), 256);   // bits already programmed stay
         std::memcpy(page + in, data + done, n);
-        const u32 pm = irq_off();
+        const u32 pm = flash_exclusive_begin();
         ram_program(kFsBase + start, page, 256);
-        irq_restore(pm);
-        if (std::memcmp(board_flash_map(at), data + done, n) != 0) return 0;
+        flash_exclusive_end(pm);
+        if (std::memcmp(board_flash_map(at), data + done, n) != 0) { ok = 0; break; }
         done += n;
     }
-    return 1;
+    flash_unlock();
+    return ok;
 }
 }
 
@@ -244,14 +328,9 @@ void scl_log_putc(char c) { const char l[2] = {c, 0}; say(l); }
 }
 
 // ---- calling into a library ---------------------------------------------------------------
-/* r0 = fn, r1 = got, r2.. = arguments, moved down two registers. Floats stay in s0, s1. */
-extern "C" __attribute__((naked)) int call_lib(void*, u32, std::uintptr_t, std::uintptr_t, std::uintptr_t, std::uintptr_t) {
-    __asm__ volatile(
-        "push {r4, r5, r10, lr}\n mov r10, r1\n mov r12, r0\n mov r0, r2\n mov r1, r3\n"
-        "ldr r2, [sp, #16]\n ldr r3, [sp, #20]\n blx r12\n pop {r4, r5, r10, pc}\n");
-}
+/* call_lib is in arena.S: an exception unwinds through it, so it carries unwind info. */
 int lib_call(const Lib& lib, void* fn, std::uintptr_t a, std::uintptr_t b, std::uintptr_t c, std::uintptr_t d) {
-    return call_lib(fn, lib.got, a, b, c, d);
+    return static_cast<int>(call_lib(fn, lib.got, a, b, c, d));
 }
 float lib_callf(const Lib& lib, void* fn, float a, float b) {
     using f = float (*)(void*, u32, float, float, std::uintptr_t, std::uintptr_t, std::uintptr_t, std::uintptr_t);
@@ -262,16 +341,26 @@ float lib_callf(const Lib& lib, void* fn, float a, float b) {
 namespace {
 bool g_loaded;
 volatile unsigned g_done[2], g_bad;
-thread::stack::element_t g_stacks[2][1024], g_idle_stack[512];
+thread::stack::element_t g_stacks[2][2048], g_idle_stack[512];
+volatile unsigned g_walked;
+volatile bool g_ready_core[2];
 
 void* worker(void* arg) {
     const unsigned core = static_cast<unsigned>(reinterpret_cast<std::uintptr_t>(arg));
     this_thread::thread().cpu_affinity(1u << core);
     if (port_cpu_id() != core) this_thread::yield();
-    while (core == 1u && !g_done[0]) sysclock.sleep_for(5);   // one core prints at a time
+    while (g_walked != core) sysclock.sleep_for(5);   // one core prints at a time
     sayf("\n--- on core %u ---\n", port_cpu_id());
     expect(port_cpu_id() == core, "running on the right core");
     app_on_core(port_cpu_id());
+    __asm__ volatile("dmb" : : : "memory");
+    g_walked = core + 1u;
+    while (g_walked < 2u) sysclock.sleep_for(5);
+    if (app_writes_flash_under_smp()) flash_park_enable_here();
+    g_ready_core[core] = true;
+    __asm__ volatile("dmb" : : : "memory");
+    while (!g_ready_core[0] || !g_ready_core[1]) sysclock.sleep_for(5);
+    app_together(core);
     g_done[core] = 1;
     return nullptr;
 }
@@ -285,6 +374,34 @@ void* idle1(void*) {
     return nullptr;
 }
 }  // namespace
+
+Fn lib_fn(const Lib& lib, const char* name) {
+    void* p = lib_sym(lib, name);
+    if (!p) { say("  FAIL: missing export "); say(name); say("\n"); g_bad = g_bad + 1u; }
+    return Fn{p, lib.got};
+}
+void show(const char* what, std::uint32_t v) {
+    char l[120];
+    std::snprintf(l, sizeof l, "  %s = %u\n", what, static_cast<unsigned>(v));
+    say(l);
+}
+void show(const char* what, std::uint32_t v, std::uint32_t want) {
+    show(what, v);
+    expect(v == want, what);
+}
+__attribute__((weak)) bool lib_load_set(Lib* libs, const char* const* bases, unsigned n) {
+    for (unsigned i = 0; i < n; ++i)
+        if (!lib_load(libs[i], i, bases[i])) return false;
+    return true;
+}
+bool libs_ready() {
+    const char* missing = lib_first_missing();
+    if (!missing) return true;
+    say("  missing import: "); say(missing); say("\n");
+    return false;
+}
+__attribute__((weak)) void app_together(unsigned) {}
+__attribute__((weak)) bool app_writes_flash_under_smp() { return false; }
 
 void sayf(const char* fmt, unsigned a, unsigned b, const char* s) {
     char l[160];
@@ -308,6 +425,7 @@ extern "C" int __wrap_main(int argc, char** argv) {
 
 int os_main(int, char*[]) {
     this_thread::thread().cpu_affinity(1u << 0);
+    led::init();
     g_uart_ready = true;
     say("\n");
     say(kAppName);
@@ -316,6 +434,7 @@ int os_main(int, char*[]) {
         say("LOAD FAILED\nRESULT: FAIL\n");
         hw_result::fail();
     }
+    if (app_writes_flash_under_smp()) flash_smp_init();
     say("  starting SMP\n");
     {
         thread::attributes attr = thread::initializer;
@@ -332,7 +451,7 @@ int os_main(int, char*[]) {
     }
     multicore::launch_core1(port_smp_secondary_start, port_core1_stack_top());
     port_smp_core0_ipi_enable();
-    for (unsigned t = 0; t < 100 && !(g_done[0] && g_done[1]); ++t) sysclock.sleep_for(100);
+    for (unsigned t = 0; t < 1200 && !(g_done[0] && g_done[1]); ++t) sysclock.sleep_for(100);
     expect(g_done[0] && g_done[1], "both cores finished");
     const bool ok = g_bad == 0;
     say(ok ? "\nRESULT: PASS\n" : "\nRESULT: FAIL\n");

@@ -5,7 +5,7 @@
 #include "loader/sources/memory-byte-source.hpp"
 #include <cstdio>
 
-static fw::handle* g_mods[2];
+static fw::handle* g_mods[4];
 
 bool lib_load(Lib& lib, unsigned slot, const char* base) {
     char file[32];
@@ -19,12 +19,13 @@ bool lib_load(Lib& lib, unsigned slot, const char* base) {
 
     loader::memory_byte_source src{image};
     auto m = fw::dlopen_source(src, base);
-    if (!m || fw::dl_first_missing_import()) return false;
+    if (!m) return false;
     g_mods[slot] = *m;
     lib.slot = slot;
     lib.got = (*m)->got_base;
     return true;
 }
+const char* lib_first_missing() { return fw::dl_first_missing_import(); }
 void* lib_sym(const Lib& lib, const char* name) {
     auto v = fw::dlsym(*g_mods[lib.slot], name);
     return v ? reinterpret_cast<void*>(*v) : nullptr;

@@ -24,6 +24,8 @@ bool lib_load(Lib& lib, unsigned, const char* base) {
     return scl_overlay_load(&region, static_cast<int>(lib.slot)) == 0;
 }
 
+const char* lib_first_missing() { return nullptr; }   // the linker checked
+
 void* lib_sym(const Lib&, const char* name) {
 #define OV(n) if (std::strcmp(name, #n) == 0) return reinterpret_cast<void*>(&n)
     OV(float_add); OV(float_mul);

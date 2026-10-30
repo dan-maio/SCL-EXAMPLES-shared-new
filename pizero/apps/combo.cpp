@@ -20,7 +20,7 @@ bool app_load() {
     if (!add || !mul) return false;
     g_sum = lib_callf(flt, add, 2.5f, 3.5f);     // 6.000: kept in main
     g_prod = lib_callf(flt, mul, 2.5f, 3.5f);    // 8.750
-    return g_fs.load(1);
+    return g_fs.load(1) && libs_ready();
 }
 
 bool app_start() {
