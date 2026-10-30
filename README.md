@@ -46,8 +46,7 @@ the tree only builds as-is on this machine.
 ## WeAct F411CE status
 
 All 25 examples passed on the WeAct F411CE with the W25Q64 fitted (2026-10-30), in
-one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `b05616a`. They now
-pin `9f1320f`; the re-run at that commit is not finished.
+one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `9f1320f`.
 
 The 9 Pi-Zero examples in `pizero/` passed in one `./run-all-pizero.sh` run (2026-10-30),
 against `9f1320f`.
