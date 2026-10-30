@@ -46,7 +46,7 @@ the tree only builds as-is on this machine.
 ## WeAct F411CE status
 
 All 25 examples passed on the WeAct F411CE with the W25Q64 fitted (2026-10-30), in
-one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `ab7737d`.
+one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `b05616a`.
 The NUCLEO board and RTOS or multi-core use have not been tested; the lock and
 cache hooks were checked by counting calls on a single core with no data cache.
 
