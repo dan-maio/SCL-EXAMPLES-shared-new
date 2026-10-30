@@ -50,6 +50,9 @@ one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `b05616a`
 The NUCLEO board and RTOS or multi-core use have not been tested; the lock and
 cache hooks were checked by counting calls on a single core with no data cache.
 
+For the same loaders on a dual-core board, see `pico2-pizero-shared/` in
+`SCL-TESTS-shared-new`, and "Dual-core: the Pi-Zero RP2350B results" in `docs/LOADER-CHOICE.md`.
+
 ## Original examples
 
 WeAct F411CE apps that load a library at runtime and print to UART + semihosting.
