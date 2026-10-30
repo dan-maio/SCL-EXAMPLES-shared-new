@@ -73,3 +73,6 @@
 [submodule "api-nolib-eager/SCL-shared"]
 	path = api-nolib-eager/SCL-shared
 	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+[submodule "pizero/SCL-shared"]
+	path = pizero/SCL-shared
+	url = /home/dan/Downloads/GIT/SCL-shared-new.git

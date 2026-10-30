@@ -11,7 +11,7 @@ an existing example or wiring a new app the same way. Companion:
 
 ## 1. Folder structure of an example
 
-Every one of the 21 examples has the **same** top-level shape:
+Every WeAct example has the **same** top-level shape (`pizero/` has its own, one build for all nine):
 
 ```
 <example>/                         e.g. spifs-dynamic-xip/
