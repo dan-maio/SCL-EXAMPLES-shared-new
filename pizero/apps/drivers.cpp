@@ -25,7 +25,8 @@ bool app_load() {
 bool app_start() { return true; }
 
 void app_on_core(unsigned core) {
-    show("led_blink(3) [watch the LED], total blinks", call(led_blink, 3, 400000));
+    say("  blinking the LED (GPIO5) 5 times: watch it\n");
+    show("led_blink(5), total blinks", call(led_blink, 5, 4000000));
     show("led_is_on()", call(led_is_on), 0u);
     char l[64];
     std::snprintf(l, sizeof l, "  [libuart] hello from core %u, on the UART only\r\n", core);

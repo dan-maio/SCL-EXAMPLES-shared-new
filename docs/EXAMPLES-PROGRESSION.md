@@ -316,7 +316,7 @@ The fixtures also print a trace of each call through main, so the console shows 
 These are the RP2350 versions of the WeAct driver libraries. They use the chip's registers themselves
 instead of asking main to.
 
-- `libled` blinks the LED, which you can watch.
+- `libled` blinks the LED on GPIO5, 5 times on each core, slowly enough to watch.
 - `libuart` writes to the UART, sharing the board's console lock.
 - `libspi` moves bytes through the SPI block in internal loopback and counts mismatches.
 

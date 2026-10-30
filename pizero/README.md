@@ -87,9 +87,8 @@ cores to be right.
 
 `pizero/` pins SCL-shared-new `9ec0265`, which adds `scl::rp2350-flash` to `9f1320f`; the loaders are unchanged.
 
-All 76 passed on the board (2026-10-30) before flash writing moved into `scl::rp2350-flash` and `combo`
-gained its unload: 68 in one full run, and the 8 `cppeh` firmwares after correcting a wrong expected
-value. Since those changes, the 9 `combo` firmwares have passed; the full re-run is not finished.
+All 76 passed in one full run on the board (2026-10-30). After that run, only the LED delay in
+`apps/drivers.cpp` changed, so that the blink can be seen; `drivers-reloc` was re-run with it and passed.
 
 ## Requirements
 
