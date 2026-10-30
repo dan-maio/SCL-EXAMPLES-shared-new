@@ -43,6 +43,13 @@ Logs go to `logs/weact-<timestamp>/`. The `spifs-*` and `combo-*` examples need 
 W25Q64. Some tracked symlinks and tool paths are absolute, under `/home/dan`, so
 the tree only builds as-is on this machine.
 
+## WeAct F411CE status
+
+All 25 examples passed on the WeAct F411CE with the W25Q64 fitted (2026-10-30), in
+one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `ab7737d`.
+The NUCLEO board and RTOS or multi-core use have not been tested; the lock and
+cache hooks were checked by counting calls on a single core with no data cache.
+
 ## Original examples
 
 WeAct F411CE apps that load a library at runtime and print to UART + semihosting.
