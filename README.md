@@ -48,13 +48,13 @@ the tree only builds as-is on this machine.
 All 25 examples passed on the WeAct F411CE with the W25Q64 fitted (2026-10-30), in
 one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `9f1320f`.
 
-The 9 Pi-Zero examples in `pizero/` passed in one `./run-all-pizero.sh` run (2026-10-30),
-against `9f1320f`.
+The 27 Pi-Zero examples in `pizero/` passed (2026-10-30), against `9f1320f`, over several
+runs rather than one.
 The NUCLEO board and RTOS or multi-core use have not been tested; the lock and
 cache hooks were checked by counting calls on a single core with no data cache.
 
-For the same loaders on a dual-core board, see [`pizero/`](pizero/README.md) for one small app
-per loader, `pico2-pizero-shared/` in `SCL-TESTS-shared-new` for the full tests, and "Dual-core: the Pi-Zero RP2350B results" in `docs/LOADER-CHOICE.md`.
+For the same loaders on a dual-core board, see [`pizero/`](pizero/README.md) for the same examples
+on each loader, `pico2-pizero-shared/` in `SCL-TESTS-shared-new` for the full tests, and "Dual-core: the Pi-Zero RP2350B results" in `docs/LOADER-CHOICE.md`.
 
 ## Original examples
 

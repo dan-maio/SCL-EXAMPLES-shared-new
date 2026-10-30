@@ -1,0 +1,27 @@
+/** @file optimal.cpp — scl::optimal: an image linked at fixed addresses. Plain pointers: no
+ *  GOT, no r10, and no loader code runs after the load. */
+#include "pizero.hpp"
+#include "optimal/loader.hpp"
+#include "scl/symtab-runtime.hpp"
+#include <cstdio>
+
+static optimal::Module g_mods[2];
+
+bool lib_load(Lib& lib, unsigned slot, const char* base) {
+    char file[32];
+    std::snprintf(file, sizeof file, "%s.opt.so", base);
+    auto image = read_host_file(file);
+
+    alignas(4) static std::byte blob[256];
+    static scl::symtab::view table;
+    const auto at = reinterpret_cast<std::uint32_t>(blob);
+    table = scl::symtab::view(blob, scl::symtab::build_blob(kMainSymbols, kMainSymbolCount, blob, sizeof blob, at), at);
+    xip::nopic::set_main_symbols(scl::symtab::source(table));
+
+    if (!g_mods[slot].load(image)) return false;
+    xip::nopic::resolve_all();
+    if (xip::nopic::first_missing_import()) return false;
+    lib.slot = slot;
+    return true;
+}
+void* lib_sym(const Lib& lib, const char* name) { return reinterpret_cast<void*>(g_mods[lib.slot].sym(name)); }
