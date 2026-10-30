@@ -256,6 +256,6 @@ the cost of a `-pie` link, and gets a generic, table-free resolver in return.
 loaded as an ET_REL module that imports the STM32 HAL (`HAL_SPI_*`, `HAL_GPIO_*`)
 and `memcpy`/`memset` from `main`. Its `src/main.cpp` resolver is the four lines
 above (`from_self`), its `CMakeLists.txt` has the `-pie` / `-u` anchors, and it
-carries `src/scl-link-context.cpp` copied from the reference. `examples/spifs-static`
+links `scl::self-resolve` for `link_context::from_self()`. `examples/spifs-static`
 and `examples/spifs-optimal` show the same fixture on the two `-pie` XIP loaders,
 where the `.dynsym` resolution comes for free.

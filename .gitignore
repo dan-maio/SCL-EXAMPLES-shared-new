@@ -19,3 +19,6 @@
 !combo-overlay/vendor/
 !spifs-overlay/vendor/
 /README.pdf
+
+# run-all logs
+logs/

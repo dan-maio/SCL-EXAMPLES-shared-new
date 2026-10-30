@@ -1,4 +1,49 @@
-# examples — one app per loader model, twice over
+# SCL-EXAMPLES-shared-new
+
+WeAct F411CE examples for **SCL-shared-new**. Each example pins the loader as its
+own `SCL-shared` submodule, from `/home/dan/Downloads/GIT/SCL-shared-new.git`. This
+repo starts from the history of `SCL-EXAMPLES-shared` and adds:
+
+- the pin to SCL-shared-new, in every example;
+- four `api-*` examples that use the new APIs;
+- `run-all-weact.sh`, which builds, flashes and checks every example.
+
+`spifs-reloc` and `combo-reloc` now link `scl::self-resolve` instead of carrying
+their own copy of `link-context.cpp`, which no longer links against the fork.
+
+## New-API examples
+
+| Dir | Loader | New APIs |
+|---|---|---|
+| `api-static-boot-table` | `scl::static` | `SCL_REGISTER_SYM`, `registered()`, `add_entries()`, lock and cache hooks |
+| `api-optimal-boot-table` | `scl::optimal` | `build_blob()`, `view`, `source()`, `set_main_symbols()`, lock and cache hooks |
+| `api-dynamic-xip-semihost-table` | `scl::xip-dynamic-newlib` | `collect_buffered()`, `set_symtab(const scl_sym_entry*, ...)` |
+| `api-nolib-eager` | `scl::dynamic-nolib` | `dl_set_symtab()`, `dl_set_lazy_binding(false)`, lock and cache hooks |
+
+In each one the module imports `app_gain()` from main, so `float_scale(2, 3)` only
+returns 9 if the new table supplied it. The optimal and nolib examples also export
+a decoy `app_gain()` returning 99, reachable only through `.dynsym`.
+
+`api-dynamic-xip-semihost-table` reads an ELF copy reduced to the imported symbols,
+made with `objcopy` after linking, because the full ELF's 90 KB `.strtab` does not
+fit in RAM. That is a post-link step, though it does not change the firmware image.
+
+## Run
+
+```sh
+git clone /home/dan/Downloads/GIT/SCL-EXAMPLES-shared-new.git
+cd SCL-EXAMPLES-shared-new && git submodule update --init
+
+./run-all-weact.sh            # every example, one by one
+./run-all-weact.sh '^api-'    # a subset (regex on the name)
+```
+
+An example passes when its completion marker appears and no failure pattern does.
+Logs go to `logs/weact-<timestamp>/`. The `spifs-*` and `combo-*` examples need the
+W25Q64. Some tracked symlinks and tool paths are absolute, under `/home/dan`, so
+the tree only builds as-is on this machine.
+
+## Original examples
 
 WeAct F411CE apps that load a library at runtime and print to UART + semihosting.
 Each was built by following `../docs/import_in_project_full.md` verbatim for its

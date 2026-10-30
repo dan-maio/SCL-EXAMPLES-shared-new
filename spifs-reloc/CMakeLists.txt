@@ -19,7 +19,6 @@ add_executable(spifs-reloc
     src/main.cpp
     ${PLAT}/src/startup.c ${PLAT}/src/semihost.c ${PLAT}/src/board.c
     ${PLAT_COMMON}/src/crt.cpp ${PLAT}/src/libc-shim.c
-    src/scl-link-context.cpp
     ${V}/stm32f4-hal/stm32f4xx_hal.c ${V}/stm32f4-hal/stm32f4xx_hal_cortex.c
     ${V}/stm32f4-hal/stm32f4xx_hal_gpio.c ${V}/stm32f4-hal/stm32f4xx_hal_rcc.c
     ${V}/stm32f4-hal/stm32f4xx_hal_spi.c ${V}/stm32f4-hal/stm32f4xx_hal_dma.c
@@ -34,7 +33,7 @@ target_include_directories(spifs-reloc PRIVATE
 target_compile_definitions(spifs-reloc PRIVATE
     SCL_BOARD_WEACT=1 HSE_VALUE=25000000 STM32F411xE USE_HAL_DRIVER
     RELOC_LIB_DIR="${CMAKE_SOURCE_DIR}/fixtures/build")
-target_link_libraries(spifs-reloc PRIVATE scl::reloc)
+target_link_libraries(spifs-reloc PRIVATE scl::reloc scl::self-resolve)
 # -fpic firmware, linked -pie: main gets a _DYNAMIC so link_context::from_self()
 # can resolve the module's imports against main's own .dynsym — no resolver table.
 target_compile_options(spifs-reloc PRIVATE
