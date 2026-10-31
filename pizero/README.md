@@ -85,11 +85,9 @@ terminal, where the firmware prints the same results.
 A run passes when the firmware prints `RESULT: PASS`, which requires every value checked on both
 cores to be right.
 
-`pizero/` pins SCL-shared-new `9ec0265`, which adds `scl::rp2350-flash` to `9f1320f`; the loaders are unchanged.
+`pizero/` pins SCL-shared-new `86c83d2`. All 76 passed in one full run on the board (2026-10-31).
 
-All 76 passed in one full run on the board (2026-10-30). After that run, only the LED delay in
-`apps/drivers.cpp` changed, so that the blink can be seen; all 8 `drivers` firmwares were re-run with it
-and passed.
+`Failed semihosting operation` can appear in a passing run's log. Its cause is not known.
 
 ## Requirements
 
