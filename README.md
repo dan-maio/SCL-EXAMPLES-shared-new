@@ -51,6 +51,8 @@ All 25 examples passed on the WeAct F411CE with the W25Q64 fitted (2026-10-30), 
 one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `9f1320f`.
 
 The status of the 76 Pi-Zero firmwares is in [`pizero/README.md`](pizero/README.md).
+
+Examples for the Luckfox Lyra B come next, after its test suite in `SCL-TESTS-shared-new`.
 The NUCLEO board and RTOS or multi-core use have not been tested; the lock and
 cache hooks were checked by counting calls on a single core with no data cache.
 
