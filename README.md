@@ -49,14 +49,14 @@ the tree only builds as-is on this machine.
 
 All 25 examples passed on the WeAct F411CE with the W25Q64 fitted (2026-10-30), in
 one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `9f1320f`.
-The example submodules now pin `749da4a` (ARM A32 loader support and the shared-library
+The example submodules now pin `93ed56d` (ARM A32 loader support and the shared-library
 guide); that WeAct run has not been repeated.
 
 The status of the 76 Pi-Zero firmwares is in [`pizero/README.md`](pizero/README.md).
 
 All 67 Luckfox Lyra B example firmwares passed (2026-11-01) in one
 `./run-all-lyra.sh` run at SCL-shared-new `1eafdbe`; the example submodules now
-pin `749da4a` (the ARM A32 loader support and the shared-library guide), whose Thumb
+pin `93ed56d` (the ARM A32 loader support and the shared-library guide), whose Thumb
 behaviour is regression-tested. See [`luckfox-lyra/README.md`](luckfox-lyra/README.md).
 
 The repo also carries `common-elf-reader/` as a submodule of
