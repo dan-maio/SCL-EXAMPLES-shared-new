@@ -98,7 +98,7 @@ terminal, where the firmware prints the same results.
 A run passes when the firmware prints `RESULT: PASS`, which requires every value checked on all
 three cores to be right.
 
-`luckfox-lyra/` pins SCL-shared-new `0837825`; the run above was at `1eafdbe`, before the
+`luckfox-lyra/` pins SCL-shared-new `749da4a`; the run above was at `1eafdbe`, before the
 ARM A32 loader support. `common-elf-reader` is the `elf32_read_parse-new.git` submodule at
 `f650889`.
 
