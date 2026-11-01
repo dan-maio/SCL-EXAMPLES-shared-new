@@ -1,0 +1,38 @@
+/** @file static.cpp — scl::static: a plain -fPIC .so, copied whole into DRAM. No r10, and no
+ *  loader code runs after the load. */
+#include "lyra.hpp"
+#include "elf-reader.h"
+#include "module.h"
+#include <cstdio>
+#include <new>
+
+extern "C" { extern const std::uint32_t _reloc[10]; const std::uint32_t _reloc[10] = {}; }  // main has none
+
+static scl::Module g_mods[4];
+
+bool lib_load(Lib& lib, unsigned slot, const char* base) {
+    char file[32];
+    std::snprintf(file, sizeof file, "%s.pic.so", base);
+    auto image = read_host_file(file);
+
+    static elf_loader::symbol_table syms;
+    static bool added;
+    if (!added) syms.add_entries(kMainSymbols, kMainSymbolCount);
+    added = true;
+
+    scl::Module& m = g_mods[slot];
+    if (!m.load_buf(reinterpret_cast<const uint8_t*>(image.data()), image.size(), example_arena(slot), kArenaBytes, &syms))
+        return false;
+    lib.slot = slot;
+    return true;
+}
+void lib_unload(Lib& lib) {   // the destructor restores main, byte for byte
+    g_mods[lib.slot].~Module();
+    new (&g_mods[lib.slot]) scl::Module;
+}
+const char* lib_first_missing() {
+    for (auto& m : g_mods)
+        if (const char* n = m.first_missing_import()) return n;
+    return nullptr;
+}
+void* lib_sym(const Lib& lib, const char* name) { return g_mods[lib.slot].sym<void*>(name); }
