@@ -205,4 +205,4 @@ Rules these results depend on:
 caches. There is no flash for apps to run from, so the XIP loaders run in place from a read-only DRAM
 region there, which tests their split of code and data but not real flash. All 48 of its tests
 pass at `86c83d2`, and the 67 example firmwares in `SCL-EXAMPLES-shared-new/luckfox-lyra` pass at
-`1eafdbe`.
+`1eafdbe` (the examples now pin `eb2ae55`, the ARM A32 loader support).
