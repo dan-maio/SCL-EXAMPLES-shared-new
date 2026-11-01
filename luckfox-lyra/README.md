@@ -98,7 +98,8 @@ terminal, where the firmware prints the same results.
 A run passes when the firmware prints `RESULT: PASS`, which requires every value checked on all
 three cores to be right.
 
-`luckfox-lyra/` pins SCL-shared-new `1eafdbe`.
+`luckfox-lyra/` pins SCL-shared-new `a39e0f0`. The run above was at `1eafdbe`, whose code is
+identical; `a39e0f0` only adds the tested-on row to the loader README.
 
 ## Requirements
 

@@ -49,7 +49,7 @@ the tree only builds as-is on this machine.
 
 All 25 examples passed on the WeAct F411CE with the W25Q64 fitted (2026-10-30), in
 one `./run-all-weact.sh` run from clean builds, against SCL-shared-new `9f1320f`.
-The example submodules now pin `1eafdbe`; that WeAct run has not been repeated.
+The example submodules now pin `a39e0f0`; that WeAct run has not been repeated.
 
 The status of the 76 Pi-Zero firmwares is in [`pizero/README.md`](pizero/README.md).
 
