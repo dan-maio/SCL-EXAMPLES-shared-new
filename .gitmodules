@@ -1,84 +1,84 @@
 [submodule "combo-optimal/SCL-shared"]
 	path = combo-optimal/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "combo-reloc/SCL-shared"]
 	path = combo-reloc/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "combo-static/SCL-shared"]
 	path = combo-static/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "combo-static-full-ram/SCL-shared"]
 	path = combo-static-full-ram/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "float-dynamic/SCL-shared"]
 	path = float-dynamic/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "float-optimal/SCL-shared"]
 	path = float-optimal/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "float-reloc/SCL-shared"]
 	path = float-reloc/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "float-static/SCL-shared"]
 	path = float-static/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "spifs-optimal/SCL-shared"]
 	path = spifs-optimal/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "spifs-reloc/SCL-shared"]
 	path = spifs-reloc/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "spifs-static/SCL-shared"]
 	path = spifs-static/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "spi-static-full-ram/SCL-shared"]
 	path = spi-static-full-ram/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "combo-dynamic/SCL-shared"]
 	path = combo-dynamic/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "float-dynamic-xip/SCL-shared"]
 	path = float-dynamic-xip/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "spifs-dynamic-xip/SCL-shared"]
 	path = spifs-dynamic-xip/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "combo-dynamic-xip/SCL-shared"]
 	path = combo-dynamic-xip/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "spifs-dynamic/SCL-shared"]
 	path = spifs-dynamic/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "float-overlay/SCL-shared"]
 	path = float-overlay/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "spifs-overlay/SCL-shared"]
 	path = spifs-overlay/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "combo-overlay/SCL-shared"]
 	path = combo-overlay/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "float-static-full-ram/SCL-shared"]
 	path = float-static-full-ram/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "api-static-boot-table/SCL-shared"]
 	path = api-static-boot-table/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "api-optimal-boot-table/SCL-shared"]
 	path = api-optimal-boot-table/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "api-dynamic-xip-semihost-table/SCL-shared"]
 	path = api-dynamic-xip-semihost-table/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "api-nolib-eager/SCL-shared"]
 	path = api-nolib-eager/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "pizero/SCL-shared"]
 	path = pizero/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "luckfox-lyra/SCL-shared"]
 	path = luckfox-lyra/SCL-shared
-	url = /home/dan/Downloads/GIT/SCL-shared-new.git
+	url = ../SCL-shared-new.git
 [submodule "common-elf-reader"]
 	path = common-elf-reader
-	url = /home/dan/Downloads/GIT/elf32_read_parse-new.git
+	url = ../elf32_read_parse-new.git
