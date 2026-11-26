@@ -40,6 +40,14 @@ cd SCL-EXAMPLES-shared-new && git submodule update --init
 ./run-all-weact.sh '^api-'    # a subset (regex on the name)
 ```
 
+The µOS++ III SMP builds (`luckfox-lyra/`, `pizero/`) take the kernel, the devices package and the
+ports from the `uos/` submodules, which `git submodule update --init` fetches from
+GitHub: `micro-os-plus-iii` (`smp-back`), `micro-os-plus-iii-devices` (`smp`),
+`micro-os-plus-iii-aarch32` and `micro-os-plus-iii-cortexm` (`smp-back`). Their
+`UOS_PORT_DIR` defaults to `../uos/micro-os-plus-iii-<port>`; set it (with
+`-DUOS_PORT_DIR=...` or in the environment for the run scripts) to use another
+working copy.
+
 An example passes when its completion marker appears and no failure pattern does.
 Logs go to `logs/weact-<timestamp>/`. The `spifs-*` and `combo-*` examples need the
 W25Q64. Some tracked symlinks and tool paths are absolute, under `/home/dan`, so
